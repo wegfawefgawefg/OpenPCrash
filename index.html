@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPCrash</title>
+<meta name="description" content="OpenPCrash plays Phantom Crash (Xbox, 2002) on Windows, Mac and Linux, from your own copy of the game.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="band top">
+  <div class="frame">
+    <h1>OpenPCrash</h1>
+    <p class="strap">Phantom Crash on Windows, Mac and Linux. Bring your own disc.</p>
+  </div>
+</header>
+
+<main class="frame">
+
+  <section class="download" id="download">
+    <!-- the button for the visitor's system; the script below picks it, and without the script
+         the three links underneath are all there is -->
+    <a class="button big" id="main-download" href="#downloads">Download OpenPCrash</a>
+    <p class="note" id="main-note">Windows, Mac and Linux. Free.</p>
+    <ul class="others" id="downloads">
+      <li><a data-os="windows" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-windows.zip">Windows</a> <span>10 and 11, 64-bit</span></li>
+      <li><a data-os="mac" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-mac.zip">Mac</a> <span>Apple Silicon, macOS 12 and newer</span></li>
+      <li><a data-os="linux" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-linux.zip">Linux</a> <span>64-bit, glibc 2.38 and newer</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What it is</h2>
+    <p>Phantom Crash is Genki's 2002 Xbox game of small mechs called Scoobees, built up in a garage and
+      fought in the streets of a future Tokyo. OpenPCrash is a new program that plays it on a computer: the same fights, the same
+      garage and tournaments, at any resolution and frame rate, with a keyboard and mouse or a pad,
+      and split-screen VS for up to four.</p>
+    <p>It plays the game you own. None of the original game comes with the download: the first
+      time you start OpenPCrash, it reads your copy once and keeps what it needs on your computer.</p>
+  </section>
+
+  <section class="shots">
+    <!-- TODO(owner): screenshots to capture; replace each placeholder with
+         <img src="screenshots/NAME.png" alt="..."> -->
+    <figure class="shot"><div>Screenshot: a fight in Shinjuku</div></figure>
+    <figure class="shot"><div>Screenshot: the garage</div></figure>
+    <figure class="shot"><div>Screenshot: split-screen VS</div></figure>
+    <figure class="shot"><div>Screenshot: the first-run screen</div></figure>
+  </section>
+
+  <section id="own-copy">
+    <h2>You need your own copy</h2>
+    <p>OpenPCrash needs your Phantom Crash disc, the North American (USA) release, made into a disc
+      image (an <code>.iso</code> file) or copied off as the game's folder. You make it yourself,
+      from the disc you own. Ordinary PC DVD drives can't read Xbox game discs, so it's done one of
+      these ways:</p>
+    <ul>
+      <li><strong>With an original Xbox</strong> that runs a homebrew dashboard: copy the game's
+        folder (the one with <code>default.xbe</code> and <code>Media</code> in it) from the disc to
+        your computer over the network.</li>
+      <li><strong>With a DVD drive that can read Xbox discs</strong> (some older drives, with
+        firmware made for it) and a disc dumping program: this makes a full disc image.</li>
+      <li><strong>If you already play your copy in an Xbox emulator</strong>, the <code>.iso</code>
+        you use there works as it is.</li>
+    </ul>
+    <p>Then start OpenPCrash and drag the <code>.iso</code> or the folder onto its window. A
+      <code>.zip</code> or <code>.7z</code> has to be unpacked first. Setup takes about a minute and
+      needs about 4 GB free. It all happens on your computer: nothing is uploaded.</p>
+  </section>
+
+  <section id="faq">
+    <h2>Questions</h2>
+
+    <h3>The Mac says it can't open the app</h3>
+    <p>The app isn't signed by Apple, so macOS asks the first time. On macOS 15 and newer, try to
+      open it, then go to System Settings, Privacy &amp; Security, scroll down and choose
+      <em>Open Anyway</em> beside OpenPCrash. On macOS 12 to 14, right-click (or Ctrl-click) the
+      app, choose Open, then Open again. If it says the app is "damaged", run this once in
+      Terminal: <code>xattr -dr com.apple.quarantine OpenPCrash.app</code></p>
+
+    <h3>Where are my saves?</h3>
+    <p>Saves, settings and the game data read from your disc are kept here:</p>
+    <ul class="paths">
+      <li>Windows: <code>%APPDATA%\OpenPCrash\OpenPCrash\</code></li>
+      <li>Mac: <code>~/Library/Application Support/OpenPCrash/OpenPCrash/</code></li>
+      <li>Linux: <code>~/.local/share/OpenPCrash/OpenPCrash/</code></li>
+    </ul>
+    <p>Your saves are in <code>saves</code>. Deleting <code>data</code> and <code>cooked</code>
+      makes OpenPCrash ask for the disc again; the saves stay.</p>
+
+    <h3>Can I use a controller?</h3>
+    <p>Yes. An Xbox-style pad works button for button like the original's; most other pads work too.
+      Plug them in any time. With more than one pad, VS is split-screen. Keyboard and mouse work out
+      of the box, and every binding can be changed in Options, PC Config.</p>
+
+    <h3>Which copies work?</h3>
+    <p>The North American (USA) disc. A plain Xbox image, a full disc image with the video
+      partition, or the game's folder all work. Other regions aren't read yet.</p>
+
+    <h3>What computer does it need?</h3>
+    <p>Graphics with Vulkan (most cards and chips from 2016 on; on a Mac it's built in), and about
+      4 GB of disk space for the data read from your disc.</p>
+  </section>
+
+</main>
+
+<footer class="band bottom">
+  <div class="frame">
+    <p>OpenPCrash is not affiliated with or endorsed by Genki Co., Ltd. Phantom Crash is a trademark of its owner.</p>
+    
+    <p><a href="https://github.com/wegfawefgawefg/OpenPCrash">Source code</a> &middot; Font: Jost, SIL Open Font License</p>
+  </div>
+</footer>
+
+<script>
+// one big button for the visitor's system, the rest stay listed below it
+(function () {
+  var agent = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+  agent = (agent + " " + navigator.userAgent).toLowerCase();
+  var os = /win/.test(agent) ? "windows" : /mac|iphone|ipad/.test(agent) ? "mac"
+         : /linux|x11|cros/.test(agent) && !/android/.test(agent) ? "linux" : "";
+  if (!os) return;
+  var link = document.querySelector('#downloads a[data-os="' + os + '"]');
+  var names = { windows: "Windows", mac: "Mac", linux: "Linux" };
+  var main = document.getElementById("main-download");
+  main.href = link.href;
+  main.textContent = "Download for " + names[os];
+  document.getElementById("main-note").textContent = link.nextElementSibling.textContent + ". Other systems below.";
+  link.parentNode.classList.add("current");
+})();
+</script>
+</body>
+</html>
