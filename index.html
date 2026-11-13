@@ -5,57 +5,172 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OpenPCrash</title>
 <meta name="description" content="OpenPCrash plays Phantom Crash (Xbox, 2002) on Windows, Mac and Linux, from your own copy of the game.">
+<meta name="theme-color" content="#010309">
+<meta property="og:title" content="OpenPCrash">
+<meta property="og:description" content="Phantom Crash on Windows, Mac and Linux. Bring your own disc.">
+<link rel="preload" href="fonts/BarlowCondensed-ExtraBoldItalic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="band top">
-  <div class="frame">
-    <h1>OpenPCrash</h1>
-    <p class="strap">Phantom Crash on Windows, Mac and Linux. Bring your own disc.</p>
+<!-- our own drawings, used below -->
+<svg class="sprites" aria-hidden="true">
+  <defs>
+    <!-- lock-on corners: four brackets on a 160x90 box, stretched over a picture -->
+    <symbol id="lock" viewBox="0 0 160 90" preserveAspectRatio="none">
+      <g fill="none" stroke="currentColor" stroke-width="1.4" vector-effect="non-scaling-stroke">
+        <path d="M0 14V0h18M142 0h18v14M160 76v14h-18M18 90H0V76" vector-effect="non-scaling-stroke"/>
+        <path d="M5 22V5h4M151 5h4v17M155 68v17h-4M9 85H5V68" stroke-width="0.8" vector-effect="non-scaling-stroke"/>
+      </g>
+    </symbol>
+    <!-- the gun sight: ring, ticks, four arrowheads, a diamond -->
+    <symbol id="reticle" viewBox="0 0 200 200">
+      <g fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="100" cy="100" r="62"/>
+        <path d="M100 30a70 70 0 0 1 58 31M100 170a70 70 0 0 1-58-31" stroke-width="3"/>
+        <path d="M20 40V20h20M160 20h20v20M180 160v20h-20M40 180H20v-20"/>
+        <path d="M100 52l-8-14h16zM100 148l-8 14h16zM52 100l-14-8v16zM148 100l14-8v16z"/>
+        <path d="M100 92l8 8-8 8-8-8z"/>
+      </g>
+    </symbol>
+    <!-- the radar: rings, a sweep, blips -->
+    <symbol id="radar" viewBox="0 0 120 120">
+      <defs>
+        <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="currentColor" stop-opacity="0"/>
+          <stop offset="1" stop-color="currentColor" stop-opacity="0.45"/>
+        </linearGradient>
+      </defs>
+      <g fill="none" stroke="currentColor">
+        <circle cx="60" cy="60" r="56" stroke-width="2"/>
+        <circle cx="60" cy="60" r="38" stroke-opacity="0.6"/>
+        <circle cx="60" cy="60" r="20" stroke-opacity="0.6"/>
+        <path d="M60 2v116M2 60h116" stroke-opacity="0.35"/>
+        <path d="M60 4v6M60 110v6M4 60h6M110 60h6" stroke-width="3"/>
+      </g>
+      <path d="M60 60L116 60A56 56 0 0 0 99.6 20.4z" fill="url(#sweep)"/>
+      <g fill="currentColor"><rect x="84" y="34" width="6" height="6"/><rect x="38" y="80" width="5" height="5" fill-opacity="0.6"/><path d="M60 54l5 9h-10z" fill="#fff"/></g>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <div class="readouts" aria-hidden="true">
+      <span>SYS <b>WIN / MAC / LINUX</b></span>
+      <span>VS <b>1-4P</b></span>
+      <span>DISC <b>YOUR OWN</b></span>
+    </div>
+    <h1 class="name">Open<span>PCrash</span></h1>
   </div>
+  <!-- the header plate's bar: a white rule that steps down, blue streaks under it -->
+  <svg class="swoosh" viewBox="0 0 1200 34" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 0H1200V10H760L736 30H0Z" fill="#1546c4"/>
+    <path d="M0 0H1200V4H770L746 24H0Z" fill="#2f7bff"/>
+    <path d="M0 30H736L760 10H1200" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    <g fill="#8fc4ff"><path d="M820 18h300v2H820zM900 24h240v1H900zM980 14h200v1H980z"/></g>
+    <g fill="#fff" opacity="0.8"><path d="M40 14h260v2H40zM120 20h120v1H120z"/></g>
+  </svg>
 </header>
 
-<main class="frame">
+<figure class="hero">
+  <img src="shots/chase.webp" srcset="shots/chase-t.webp 640w, shots/chase.webp 1920w" sizes="100vw"
+       width="1920" height="1080" alt="A chase-view fight: a Scoobee firing down a street">
+  <svg class="lock" aria-hidden="true"><use href="#lock"/></svg>
+  <figcaption class="hero-text">
+    <p class="hero-tag">Phantom Crash &middot; Xbox 2002 &middot; PC port</p>
+    <p class="strap">Phantom Crash on Windows, Mac and Linux. <span>Bring your own disc.</span></p>
+  </figcaption>
+</figure>
 
-  <section class="download" id="download">
-    <!-- the button for the visitor's system; the script below picks it, and without the script
-         the three links underneath are all there is -->
-    <a class="button big" id="main-download" href="#downloads">Download OpenPCrash</a>
-    <p class="note" id="main-note">Windows, Mac and Linux. Free.</p>
-    <ul class="others" id="downloads">
-      <li><a data-os="windows" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-windows.zip">Windows</a> <span>10 and 11, 64-bit</span></li>
-      <li><a data-os="mac" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-mac.zip">Mac</a> <span>Apple Silicon, macOS 12 and newer</span></li>
-      <li><a data-os="linux" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-linux.zip">Linux</a> <span>64-bit, glibc 2.38 and newer</span></li>
-    </ul>
+<svg class="streaks" viewBox="0 0 1200 40" preserveAspectRatio="none" aria-hidden="true">
+  <g fill="#2f7bff"><path d="M0 6h520l-6 3H0zM160 16h700l-6 2H160zM0 27h380l-5 2H0zM620 33h580v2H612z"/></g>
+  <g fill="#8fc4ff"><path d="M40 12h300l-4 1H40zM700 9h420l-4 2H700zM420 22h520l-4 1H420zM900 28h300v1H896z"/></g>
+  <g fill="#fff"><path d="M210 19h180l-3 1H210zM960 15h160l-3 1H960z"/></g>
+</svg>
+
+<main class="wrap">
+
+  <div class="deck">
+
+    <section class="plate download" id="download">
+      <div class="bar"><span class="no">01</span><h2>Download</h2><span class="tick"></span></div>
+      <!-- the button for the visitor's system; the script below picks it, and without the script
+           the three links underneath are all there is -->
+      <a class="button" id="main-download" href="#downloads">Download OpenPCrash</a>
+      <p class="note" id="main-note">Windows, Mac and Linux. Free.</p>
+      <ul class="others" id="downloads">
+        <li><a data-os="windows" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-windows.zip">Windows</a> <span>10 and 11, 64-bit</span></li>
+        <li><a data-os="mac" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-mac.zip">Mac</a> <span>Apple Silicon, macOS 12 and newer</span></li>
+        <li><a data-os="linux" href="https://github.com/wegfawefgawefg/OpenPCrash/releases/download/v0.1.0/OpenPCrash-linux.zip">Linux</a> <span>64-bit, glibc 2.38 and newer</span></li>
+      </ul>
+      <div class="gauges" role="group" aria-label="Setup at a glance">
+        <div class="gauge"><span>Disc read</span><i style="--fill: 30%"></i><b>~1 min</b></div>
+        <div class="gauge oc"><span>Disk space</span><i style="--fill: 55%"></i><b>4 GB</b></div>
+        <div class="gauge"><span>Players</span><i style="--fill: 100%"></i><b>1-4</b></div>
+      </div>
+    </section>
+
+    <section class="plate" id="what">
+      <div class="bar"><span class="no">02</span><h2>What it is</h2><span class="tick"></span></div>
+      <svg class="radar" aria-hidden="true"><use href="#radar"/></svg>
+      <p>Phantom Crash is Genki's 2002 Xbox game of small mechs called Scoobees, built up in a garage and
+        fought in the streets of a future Tokyo. OpenPCrash is a new program that plays it on a computer: the same fights, the same
+        garage and tournaments, at any resolution and frame rate, with a keyboard and mouse or a pad,
+        and split-screen VS for up to four.</p>
+      <p>It plays the game you own. None of the original game comes with the download: the first
+        time you start OpenPCrash, it reads your copy once and keeps what it needs on your computer.</p>
+    </section>
+
+  </div>
+
+  <section class="plate" id="shots">
+    <div class="bar"><span class="no">03</span><h2>Screens</h2><span class="tick"></span></div>
+    <div class="shots">
+      <figure class="shot wide">
+        <a href="shots/cockpit.webp"><img src="shots/cockpit.webp" srcset="shots/cockpit-t.webp 640w, shots/cockpit.webp 1920w" sizes="(max-width: 560px) 100vw, 66vw" width="1920" height="1080" loading="lazy" alt="A fight in Shibuya seen from the cockpit, a hovering Scoobee in the sight"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>01</b>Cockpit view</figcaption>
+      </figure>
+      <figure class="shot">
+        <a href="shots/title.webp"><img src="shots/title-t.webp" width="1920" height="1080" loading="lazy" alt="The title screen"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>02</b>Title</figcaption>
+      </figure>
+      <figure class="shot">
+        <a href="shots/town.webp"><img src="shots/town-t.webp" width="1920" height="1080" loading="lazy" alt="The town map"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>03</b>Town map</figcaption>
+      </figure>
+      <figure class="shot">
+        <a href="shots/garage.webp"><img src="shots/garage-t.webp" width="1920" height="1080" loading="lazy" alt="The assemble screen with a Scoobee on the stand"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>04</b>Assemble</figcaption>
+      </figure>
+      <figure class="shot">
+        <a href="shots/hangar.webp"><img src="shots/hangar-t.webp" width="1920" height="1080" loading="lazy" alt="The hangar's garages, two Scoobees on their cards"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>05</b>Hangar</figcaption>
+      </figure>
+      <figure class="shot">
+        <a href="shots/club.webp"><img src="shots/club-t.webp" width="1920" height="1080" loading="lazy" alt="Club Wired, where the tournaments are entered"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>06</b>Club Wired</figcaption>
+      </figure>
+      <figure class="shot half">
+        <a href="shots/vs.webp"><img src="shots/vs-t.webp" width="1920" height="1080" loading="lazy" alt="A four-player split-screen VS round"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>07</b>VS, four players</figcaption>
+      </figure>
+      <figure class="shot half">
+        <a href="shots/scene.webp"><img src="shots/scene-t.webp" width="1920" height="1080" loading="lazy" alt="A Ranker's Scoobee rising into the arena before the bout"><svg class="lock" aria-hidden="true"><use href="#lock"/></svg><svg class="reticle" viewBox="0 0 200 200" aria-hidden="true"><use href="#reticle"/></svg></a>
+        <figcaption><b>08</b>A Ranker's entrance</figcaption>
+      </figure>
+    </div>
   </section>
 
-  <section>
-    <h2>What it is</h2>
-    <p>Phantom Crash is Genki's 2002 Xbox game of small mechs called Scoobees, built up in a garage and
-      fought in the streets of a future Tokyo. OpenPCrash is a new program that plays it on a computer: the same fights, the same
-      garage and tournaments, at any resolution and frame rate, with a keyboard and mouse or a pad,
-      and split-screen VS for up to four.</p>
-    <p>It plays the game you own. None of the original game comes with the download: the first
-      time you start OpenPCrash, it reads your copy once and keeps what it needs on your computer.</p>
-  </section>
+  <div class="deck">
 
-  <section class="shots">
-    <!-- TODO(owner): screenshots to capture; replace each placeholder with
-         <img src="screenshots/NAME.png" alt="..."> -->
-    <figure class="shot"><div>Screenshot: a fight in Shinjuku</div></figure>
-    <figure class="shot"><div>Screenshot: the garage</div></figure>
-    <figure class="shot"><div>Screenshot: split-screen VS</div></figure>
-    <figure class="shot"><div>Screenshot: the first-run screen</div></figure>
-  </section>
-
-  <section id="own-copy">
-    <h2>You need your own copy</h2>
+  <section class="plate" id="own-copy">
+    <div class="bar"><span class="no">04</span><h2>You need your own copy</h2><span class="tick"></span></div>
     <p>OpenPCrash needs your Phantom Crash disc, the North American (USA) release, made into a disc
       image (an <code>.iso</code> file) or copied off as the game's folder. You make it yourself,
       from the disc you own. Ordinary PC DVD drives can't read Xbox game discs, so it's done one of
       these ways:</p>
-    <ul>
+    <ol class="steps">
       <li><strong>With an original Xbox</strong> that runs a homebrew dashboard: copy the game's
         folder (the one with <code>default.xbe</code> and <code>Media</code> in it) from the disc to
         your computer over the network.</li>
@@ -63,14 +178,14 @@
         firmware made for it) and a disc dumping program: this makes a full disc image.</li>
       <li><strong>If you already play your copy in an Xbox emulator</strong>, the <code>.iso</code>
         you use there works as it is.</li>
-    </ul>
+    </ol>
     <p>Then start OpenPCrash and drag the <code>.iso</code> or the folder onto its window. A
       <code>.zip</code> or <code>.7z</code> has to be unpacked first. Setup takes about a minute and
       needs about 4 GB free. It all happens on your computer: nothing is uploaded.</p>
   </section>
 
-  <section id="faq">
-    <h2>Questions</h2>
+  <section class="plate" id="faq">
+    <div class="bar"><span class="no">05</span><h2>Questions</h2><span class="tick"></span></div>
 
     <h3>The Mac says it can't open the app</h3>
     <p>The app isn't signed by Apple, so macOS asks the first time. On macOS 15 and newer, try to
@@ -103,13 +218,20 @@
       4 GB of disk space for the data read from your disc.</p>
   </section>
 
+  </div>
+
 </main>
 
-<footer class="band bottom">
-  <div class="frame">
-    <p>OpenPCrash is not affiliated with or endorsed by Genki Co., Ltd. Phantom Crash is a trademark of its owner.</p>
-    
-    <p><a href="https://github.com/wegfawefgawefg/OpenPCrash">Source code</a> &middot; Font: Jost, SIL Open Font License</p>
+<footer class="bottom">
+  <svg class="swoosh" viewBox="0 0 1200 34" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 0H1200V10H440L416 30H0Z" fill="#1546c4"/>
+    <path d="M0 30H416L440 10H1200" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    <g fill="#8fc4ff"><path d="M60 18h300v2H60zM140 24h200v1H140z"/></g>
+  </svg>
+  <div class="wrap">
+    <p>OpenPCrash is not affiliated with or endorsed by Genki Co., Ltd. Phantom Crash is a trademark of its owner.
+      The screenshots are of OpenPCrash running.</p>
+    <p><a href="https://github.com/wegfawefgawefg/OpenPCrash">Source code</a> &middot; Fonts: Jost and Barlow Condensed, SIL Open Font License</p>
   </div>
 </footer>
 
