@@ -24,6 +24,9 @@ struct AimRates {
     // how far the twist target may go, radians either way of now: under Preferred the aim stops
     // at 45 degrees either side of the legs (actor_camera_input's clamp), so the target does too
     float twist_low = -1e9f, twist_high = 1e9f;
+    // the seat's fighter is in the air under Preferred, where the keys' left stick across turns
+    // it (AIR TURN, input/bindings.hpp air_turn_mouse_key)
+    bool air_turning = false;
 };
 
 struct ReadOptions {
@@ -60,6 +63,9 @@ struct World;
 // each seat's rates from the fighter that seat plays (Fighter::controller), zero for a seat with
 // none, so a seat's mouse aims its own fighter at its own turn rate
 void seat_aim_rates(const World& world, ReadOptions& options);
+// each seat's PC control settings (DOUBLE TAP STEP, from the seat's settings profile) into the
+// world before a battle starts, where its fighters' spawns read them (World::player_controls)
+void pc_controls_commit(World& world, GubsyRuntime& runtime);
 
 // every SDL event: passed on to gubsy (devices coming and going, its menus), presses latched,
 // mouse motion and the wheel added up

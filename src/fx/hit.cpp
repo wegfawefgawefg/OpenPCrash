@@ -186,6 +186,13 @@ bool segment_tri_hit(const FxTri& tri, FxVec3 from, FxVec3 to, bool both_sides, 
     }
     const FxVec3 point = point_along(from, to, fallen, drop);
     const FxTriFrame frame = tri_frame(tri, point);
+    // a triangle with no area (its corners in a line: Shibuya and Aqualine have a few) is never
+    // crossed. Retail's frame for one has no inverse (d3dx_matrix_inverse fails and writes nothing,
+    // so it reads a stale matrix off the stack); read here as u = w = 0, the widened test passed
+    // the whole of its plane, an invisible wall in every cell listing it (docs/bugs.md)
+    if (frame.den == 0) {
+        return false;
+    }
     if (margin.raw == 0) {
         if (!frame_inside(frame)) {
             return false;

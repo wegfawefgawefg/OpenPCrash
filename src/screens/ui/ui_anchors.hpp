@@ -104,9 +104,10 @@ void blur_quad(const Quad2D& q, const SpriteFrame& f, const AnchorRule& rule,
 
 struct Renderer;
 // the 2D list as the window shows it: every quad of an anchored screen moved by its anchor,
-// backgrounds and bars extended, blurred copies behind, the backdrop under all
+// backgrounds and bars extended, blurred copies behind, the backdrop under all; the quads a panel
+// drew (quad_panel) by the panel's screen instead
 void anchors_apply(const AnchorScreen* screen, const Renderer& renderer, const Draw2D& in,
-                   Draw2D& out);
+                   Draw2D& out, const AnchorScreen* panel = nullptr);
 // PHANTOMCRASH_DEV_ANCHORS=N (port-only): the Nth list written to stderr, a line a quad (sprite,
 // slot, place, layer, the anchor it takes), for writing the rules
 void anchors_dev_dump(const AnchorScreen* screen, const Renderer& renderer, const Draw2D& draw);

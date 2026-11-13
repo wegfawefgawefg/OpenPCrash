@@ -42,9 +42,15 @@ void view_draw(FrontEnd& fe, Ui& ui, WildScreen& w, int step) {
         break;
     case 1:
     case 4:
+        // the frame, then the monitor while the tabs are up (and through the fades), or the list
+        // over the bare frame (its steps and boxes), never both; selling, "nothing to sell" (0x18)
+        // has the bare frame and "sold" (0x19) the list without its bar
         wild_parts_frame_draw(fe, ui, w, selling(w), step == s_tabs);
-        if (step != s_tabs && w.tab < 7) {
-            wild_parts_list_draw(fe, ui, w, selling(w), step == s_list);
+        if (step == s_tabs || step == s_fade_in || step == s_switch) {
+            wild_parts_monitor_draw(ui, w, selling(w), step == s_tabs);
+        } else if (w.tab < 7 && !(selling(w) && step == s_box && w.message == 0x18)) {
+            wild_parts_list_draw(fe, ui, w, selling(w), step == s_list,
+                                 !(selling(w) && step == s_box && w.message == 0x19));
         }
         break;
     case 2:
@@ -152,8 +158,8 @@ void after(FrontEnd& fe, Ui& ui, WildScreen& w, int what) {
     World& world = *fe.world;
     const PartTables& t = fe.shop.tables;
     GaragePage& page = rows_of(w);
-    const int row = page.entries.empty() ? 0
-                                         : (w.scroll + w.cursor) % static_cast<int>(page.entries.size());
+    const int row =
+        page.entries.empty() ? 0 : (w.scroll + w.cursor) % static_cast<int>(page.entries.size());
     switch (what) {
     case a_list:
         // nothing left to sell: say so, then the tabs
@@ -223,7 +229,7 @@ void after(FrontEnd& fe, Ui& ui, WildScreen& w, int what) {
         break;
     case a_chip_sold: {
         const GarageEntry& e = w.editor.pages[4].entries[static_cast<std::size_t>(w.chips.cursor)];
-        money_add(world.story, wild_price(t, 4, e.id, e.tune, true));
+        money_add(world.story, wild_price(t, world.story.cheats, 4, e.id, e.tune, true));
         world.garages.inventory[e.item] = InventoryItem{};
         pages_build(fe, w);
         const int count = static_cast<int>(w.editor.pages[4].entries.size());
@@ -257,17 +263,16 @@ void after(FrontEnd& fe, Ui& ui, WildScreen& w, int what) {
 
 void hub_step(FrontEnd& fe, Ui& ui, WildScreen& w) {
     if (!w.turning) {
-        menu_cursor(ui, w.menu, 0, 6, 0x17, -1, -1);
-        if (ui.pointer.wheel != 0) {
-            w.menu = (w.menu + (ui.pointer.wheel > 0 ? 5 : 1)) % 6;
-            menu_input_mark(ui);
+        if (menu_cursor(ui, w.menu, 0, 6, 0x17, -1, -1) == 0) {
+            menu_wheel_pointer(ui, w.menu, 6, wild_menu_item(ui, w));
         }
     }
     if (w.menu != w.menu_before && !w.turning) {
         ui_sound(ui, bank_sys, se_carousel_turn);
-        text_strip_init(ui, w.labels[w.menu], 85, 211,
-                        ui_strings(ui.data, "wild_machines", "wild_machines_menu_lines", w.menu, 1)[0],
-                        85, 211, 265, 229);
+        text_strip_init(
+            ui, w.labels[w.menu], 85, 211,
+            ui_strings(ui.data, "wild_machines", "wild_machines_menu_lines", w.menu, 1)[0], 85, 211,
+            265, 229);
         w.turning = true;
         w.menu_frames = 0;
     } else if (w.turning && ++w.menu_frames > 8) {
@@ -276,8 +281,8 @@ void hub_step(FrontEnd& fe, Ui& ui, WildScreen& w) {
         w.menu_before = w.menu;
     }
     wild_menu_draw(fe, ui, w);
-    const PointerRect lit = wild_menu_rect(ui, w);
-    if (menu_accept(ui, &lit)) {
+    const bool on_lit = ui.pointer.left && menu_wheel_pick(ui, wild_menu_item(ui, w)) == 0;
+    if (menu_accept_pressed(ui.pad) || on_lit) {
         if (w.menu == 5) {
             ui_sound(ui, bank_sys, se_shop_leave);
             w.result = 0;
@@ -305,7 +310,8 @@ void hub_step(FrontEnd& fe, Ui& ui, WildScreen& w) {
 
 } // namespace
 
-void wild_spawn(FrontEnd&, Ui&) {}
+void wild_spawn(FrontEnd&, Ui&) {
+}
 
 void wild_step(FrontEnd& fe, Ui& ui) {
     WildScreen& w = fe.screen.wild;
@@ -325,9 +331,10 @@ void wild_step(FrontEnd& fe, Ui& ui) {
             texture_set_load(ui, sheet);
         }
         for (int i = 0; i < 6; ++i) {
-            text_strip_init(ui, w.labels[i], 85, 211,
-                            ui_strings(ui.data, "wild_machines", "wild_machines_menu_lines", i, 1)[0],
-                            85, 211, 265, 229);
+            text_strip_init(
+                ui, w.labels[i], 85, 211,
+                ui_strings(ui.data, "wild_machines", "wild_machines_menu_lines", i, 1)[0], 85, 211,
+                265, 229);
         }
         for (int i = 0; i < 31; ++i) {
             w.boxes[i] = msg_box_from(ui, "wild_machines", "wild_machines_boxes", i);

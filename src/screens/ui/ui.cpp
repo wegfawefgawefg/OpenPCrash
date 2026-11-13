@@ -1,6 +1,7 @@
 #include "screens/ui/ui.hpp"
 
 #include "audio/audio.hpp"
+#include "perf_log.hpp"
 #include "render/renderer.hpp"
 
 #include "cook/pack.hpp"
@@ -109,6 +110,10 @@ Quad2D place(const Ui& ui, const Sprite& sprite) {
     quad.alpha = sprite_z(ui, sprite);
     quad.layer = sprite.blend;
     quad.flags = sprite.flags;
+    if (ui.panel) {
+        quad.flags |= quad_panel;
+        quad.layer += quad.layer < 0x1000 ? panel_layer_lift : 0;
+    }
     return quad;
 }
 
@@ -145,6 +150,7 @@ void ui_begin_update(Ui& ui) {
 }
 
 void ui_present(Ui& ui) {
+    const PerfScope timed(PerfPart::ui);
     std::fill(ui.slot_textures.begin(), ui.slot_textures.end(), SlotTexture{});
     // the original's slots: the sheets texture_set_load put there (the conversations, the font)
     const std::string prefix = ui.data.data_dir + "/";
@@ -173,7 +179,7 @@ void ui_present(Ui& ui) {
     ui.pointer.anchors = ui.anchor_screen;
     anchors_dev_dump(ui.anchor_screen, *ui.renderer, ui.draw);
     Draw2D& shown = ui.shown;
-    anchors_apply(ui.anchor_screen, *ui.renderer, ui.draw, shown);
+    anchors_apply(ui.anchor_screen, *ui.renderer, ui.draw, shown, ui.panel_anchors);
     // the screen adjust: the 3D viewports move by it (the renderer's), every 2D pass with them but
     // pass 15 (the fade) and the full-window layers, which cover the glass
     ui.renderer->screen_shift[0] = ui.screen_shift[0];

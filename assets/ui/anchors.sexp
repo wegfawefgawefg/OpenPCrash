@@ -51,8 +51,17 @@
   (region -9999 -9999 232 9999 left)
   (region 408 -9999 9999 9999 right))
 
-; fights, test drives, free play, the replay, the attract demo, the ending's scene
-(screen battle (states 6 0x2f 0x2a 5 1 0xa)
+; fights, test drives, free play, the attract demo, the ending's scene
+(screen battle (states 6 0x2f 0x2a 1 0xa)
+  (use hud))
+
+; the replay (replay_screen_draw): its see-through black bars over the fight's top and bottom run
+; on to the window's edges (flat across); the view's name and the arrows either side of it (the
+; plain pair and the blinking pair, 213..427) stay together in the middle; REPLAY and the A
+; RETURN hint go to the corners with the HUD
+(screen replay (states 5)
+  (sprite 3075 2242 extend clamp)                ; the bars, 656 wide from x 0
+  (sprite 2238-2241 2243 2246 2247 2250 2251 2255 centre) ; the arrows and the views' names
   (use hud))
 
 ; ---------------------------------------------------------------------------------------------
@@ -68,6 +77,10 @@
   (slots 0x10000 0x1ffff (in 288 20 9999 72) right)) ; what a screen draws over its title (PC's PC)
 
 (group frame-bars
+  ; pieces of a frame picture cut out to write over the title go right with it (PC CONFIG's P,
+  ; cut from OPTION, beside the C from the sound config's header)
+  (sprite 1526 1649 2106 2208 2751 2830 2831 2911 2726 (in 288 20 9999 72) right)
+  (sprite 3080 extend clamp (inset 34))                     ; the garage name plate (from the left)
   (size 640 96 extend clamp (inset 34) (split 260))         ; the header: DAY tab and money | the title
   (size 640 72 extend clamp (inset 34) (split 260))         ; the shorter header (town map, Sonic Amp)
   (size 640 104 extend clamp (inset 34))                    ; the footer
@@ -115,13 +128,16 @@
   (use frame))
 
 ; the hangar: the wheel of garages runs on past the box with its machines, its shaded ends at the
-; window's sides
+; window's sides. Everything on a card (its price's digits, name, class and marks) goes with it:
+; the cards' band is free, after the frame's picture
 (screen hangar (states 0xe)
   (sprite 1574 left)
   (sprite 1575 right)
   (sprite 1528-1547 free)                        ; the cards, their numbers and classes
   (sprite 1553 extend clamp)                     ; the name plates' bar
-  (use frame))
+  (use frame-bars)
+  (region -9999 100 9999 340 free)               ; what the cards carry (y 121..337)
+  (use frame-text))
 
 ; the hubs (garage, Club Wired, Plus Tech, Wild Machines, the help menu's club): the wheel runs on
 ; past the box, the footer opens with the place's logo to the right. The hub picture holds its
@@ -142,8 +158,11 @@
   (shows 1476 3042 2128 1088)
   (use hub))
 
-; the hubs' pages (Wild Machines' and Plus Tech's lists, the used Scoobees...) are framed
+; the hubs' pages (Wild Machines' and Plus Tech's lists, the used Scoobees...) are framed; Wild
+; Machines' title bars (USED-SV, the used modules' buy and sell) and the line under the used
+; Scoobees' class marks run in from the left edge
 (screen hub-pages (states 0xd 8 0x1b 0xf)
+  (sprite 3032 2884 3021 extend clamp (inset 34))
   (use frame))
 
 ; the help menu (Pepper's talk): Pepper to the right
@@ -169,8 +188,14 @@
   (sprite 2444 2463 extend clamp)
   (use frame))
 
-; the dealer
+; the dealer: the scrolling blueprint loop (four images a dealer, 640x480 ones among them, so
+; they must come before the frame's picture rule) is drawn on to the window's edges by the screen
+; itself (dealer_draw.cpp), sharp and scrolling; the band over the footer and the menu plate's
+; lines (flat at their left end) run on
 (screen dealer (states 0x22)
+  (sprite 1247-1250 1298-1301 1319-1322 free)
+  (sprite 1212 (in -9999 340 9999 370) extend clamp (inset 34))
+  (sprite 1213 extend clamp)
   (use frame))
 
 ; the result: the receipt over the demo battle, the frame's bars to the edges

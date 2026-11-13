@@ -21,6 +21,10 @@
 # port's own assets/ (from git), the notes and the third-party licenses. Nothing from the disc:
 # the release stops if any file outside that list is in a bundle (check_bundle), or if a binary
 # names a path of the machine it was built on (check_paths).
+#
+# Bug reports (docs/release.md, "Bug reports") go where ~/.config/openpcrash/report_url says, when that file is
+# there (one line, the https address); without it the builds have none, and their question and
+# menu items stay hidden. The address is never in the repository.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
@@ -37,7 +41,7 @@ llvm_mingw_sha256=bb7bb7654b33d5aa8712acb837c963b2e0c56352560c76105270a3268c665c
 # the Mac build's pins and steps
 source "$repo_root/scripts/release-mac.sh"
 
-usage() { sed -n '2,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 only=""
 check_only=""
@@ -106,6 +110,18 @@ seed_tool() { # name
 mkdir -p "$tools"
 stamp=(-DPHANTOMCRASH_RELEASE=ON -DPHANTOMCRASH_USE_LOCAL_DEPS=OFF
        -DPHANTOMCRASH_COMMIT="$commit" -DPHANTOMCRASH_BUILD_DATE="$day")
+# where bug reports go: the owner's own file, never the repository's
+report_url_file="${PHANTOMCRASH_REPORT_URL_FILE:-$HOME/.config/openpcrash/report_url}"
+report_url=""
+if [[ -f "$report_url_file" ]]; then
+    report_url="$(head -n 1 "$report_url_file" | tr -d '[:space:]')"
+fi
+stamp+=(-DPHANTOMCRASH_REPORT_URL="$report_url")
+if [[ -n "$report_url" ]]; then
+    echo "release: bug reports go to the address in $report_url_file"
+else
+    echo "release: no $report_url_file: these builds send no bug reports"
+fi
 built=() # the zips made, for the summary
 
 # the third-party licenses: every dependency the game links, from its fetched sources
@@ -113,7 +129,8 @@ copy_licenses() { # build licenses_dir
     local deps="$1/_deps" to="$2" name file
     mkdir -p "$to"
     for name in sdl3:SDL3 sdl3_image:SDL3_image sdl3_ttf:SDL3_ttf sdl3_mixer:SDL3_mixer gubsy:Gubsy \
-                gview:GView glayout:GLayout gfxp:gfxp gsexp:gsexp cgltf:cgltf bc7enc_rdo:bc7enc_rdo; do
+                gview:GView glayout:GLayout gfxp:gfxp gsexp:gsexp cgltf:cgltf bc7enc_rdo:bc7enc_rdo \
+                curl:curl; do
         file="$(find "$deps/${name%%:*}-src" -maxdepth 1 -type f \
                 \( -iname 'LICENSE*' -o -iname 'COPYING*' \) 2>/dev/null | sort | head -1)"
         if [[ -n "$file" ]]; then
@@ -140,6 +157,7 @@ copy_licenses() { # build licenses_dir
         fi
     done
     cp "$repo_root/third_party/pl_mpeg/LICENSE" "$to/pl_mpeg.txt"
+    cp "$repo_root/third_party/lz4/LICENSE" "$to/lz4.txt"
     cp "$repo_root/assets/fonts/OFL.txt" "$to/Jost-OFL.txt"
 }
 
@@ -214,7 +232,14 @@ check_paths() { # bundle
 
 build_linux() {
     local build="$out/linux-build" bundle="$out/$product-linux"
-    nice -n 19 cmake -S "$repo_root" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release "${stamp[@]}"
+    local curl=()
+    # libcurl.so.4 (OpenSSL) is on every distribution; Debian's libcurl.so for building may be
+    # GnuTLS's libcurl-gnutls.so.4, which others lack (as Mans In My House's release.sh)
+    if [[ -e /usr/lib/x86_64-linux-gnu/libcurl.so.4 ]]; then
+        curl=(-DCURL_LIBRARY_RELEASE=/usr/lib/x86_64-linux-gnu/libcurl.so.4)
+    fi
+    nice -n 19 cmake -S "$repo_root" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release "${stamp[@]}" \
+        ${curl[@]+"${curl[@]}"}
     nice -n 19 cmake --build "$build" --target phantomcrash phantomcrash_shaders --parallel "$jobs"
 
     rm -rf "$bundle" && mkdir -p "$bundle" "$symbols/linux"

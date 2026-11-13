@@ -60,6 +60,26 @@ BattleWorldPlan battle_world_plan(World& world, const BattleWorldSetup& setup,
             }
         }
     }
+    // and every opponent the fight can queue after it starts: release_opponent puts a pool's
+    // primary in once its alternates are beaten, rumble_fixed_opponent_queue the fixed opponent
+    // once the pools are done. Retail loads each replacement's files as it is drawn
+    // (battle_fighter_loader_thread); without its rig here such a fighter had no pose or leg
+    // motion and showed nothing but its name
+    const int tournament = world.story.lineup[context];
+    if (tournament >= 0 && tournament < static_cast<int>(story.tournaments.size())) {
+        const TournamentRow& t = story.tournaments[static_cast<std::size_t>(tournament)];
+        std::vector<int> opponents{t.fixed_opponent};
+        for (const int pool : t.pools) {
+            if (pool >= 0 && pool < static_cast<int>(story.pools.size())) {
+                opponents.push_back(story.pools[static_cast<std::size_t>(pool)].primary);
+            }
+        }
+        for (const int opponent : opponents) {
+            if (opponent >= 0) {
+                plan.rigs.push_back(opponent_entry(roster, opponent).loadout);
+            }
+        }
+    }
     std::sort(plan.rigs.begin(), plan.rigs.end());
     plan.rigs.erase(std::unique(plan.rigs.begin(), plan.rigs.end()), plan.rigs.end());
     return plan;

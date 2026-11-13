@@ -78,22 +78,20 @@ PointerRect cell_rect(const SonicAmpScreen& s, int col, int row, float dy) {
 
 // the pointer over a grid cell moves the cursor there (the d-pad's sound); true on a move
 bool pointer_grid(Ui& ui, SonicAmpScreen& s, int cols, int rows, float dy) {
-    if (!ui.pointer.moved) {
-        return false;
-    }
+    PointerRect cells[12];
     for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < cols; ++c) {
-            const PointerRect rect = cell_rect(s, c, r, dy);
-            if (pointer_inside(ui.pointer, rect) && (c != s.col || r != s.row)) {
-                s.col = c;
-                s.row = r;
-                ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
-                menu_input_mark(ui);
-                return true;
-            }
+            cells[r * cols + c] = cell_rect(s, c, r, dy);
         }
     }
-    return false;
+    int cell = s.row * cols + s.col;
+    if (menu_cursor(ui, cell, 0, rows * cols, cursor_no_dpad, bank_sys, se_menu_cursor_horizontal,
+                    cells) == 0) {
+        return false;
+    }
+    s.col = cell % cols;
+    s.row = cell / cols;
+    return true;
 }
 
 // the buy / listen / back items' hit boxes: their plates' art (96 x 24 sprites drawn from 3..92
@@ -126,8 +124,10 @@ void menu_update(FrontEnd& fe, Ui& ui, SonicAmpScreen& s) {
             }
             std::uint8_t& owned = story.music_owned[id];
             if (owned == 0) {
-                if (story.money >= song_price) {
-                    story.money -= song_price;
+                // SHOP PRICES (PC CONFIG's CHEATS) divides it
+                const int price = cheat_shop_price(story.cheats, song_price);
+                if (story.money >= price) {
+                    story.money -= price;
                     owned = 1;
                     s.message = 1;
                     ui_sound(ui, bank_sys, se_purchase);
@@ -228,7 +228,7 @@ void chart_update(FrontEnd& fe, Ui& ui, SonicAmpScreen& s) {
         menu_update(fe, ui, s);
         return;
     }
-    const PadRecord& pad = ui.pad;
+    const PadRecord pad = menu_pad_unclicked(ui);
     bool changed = false;
     if ((pad.b.rising & pad_left_trigger) != 0) {
         page_turn(s, -1);
@@ -258,10 +258,18 @@ void chart_update(FrontEnd& fe, Ui& ui, SonicAmpScreen& s) {
             title_set(fe, ui, s);
             return;
         }
-        // the mouse wheel turns pages as the triggers do
-        if (ui.pointer.wheel != 0) {
-            page_turn(s, ui.pointer.wheel > 0 ? -1 : 1);
+        // the mouse wheel turns pages as the triggers do, and so does a click on an arrow
+        const SpriteSlot left = slot_at(ui, sa, "sonic_amp_chart_sprites_3", 0);
+        const SpriteSlot right = slot_at(ui, sa, "sonic_amp_chart_sprites_3", 2);
+        // their rows' rectangles widened 20 px: the art sits off them (the right one past 596)
+        const PointerRect arrows[2] = {
+            pointer_rect_inset(sprite_rect(ui, left.sprite, left.x, left.y), -20, 0, -20, 0),
+            pointer_rect_inset(sprite_rect(ui, right.sprite, right.x, right.y), -20, 0, -20, 0)};
+        const int arrow = ui.pointer.left ? pointer_pick(ui.pointer, arrows, 2) : -1;
+        if (ui.pointer.wheel != 0 || arrow >= 0) {
+            page_turn(s, arrow == 0 || (arrow < 0 && ui.pointer.wheel > 0) ? -1 : 1);
             ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
+            ui.pointer.left = false;
             changed = true;
         }
         changed = pointer_grid(ui, s, 6, chart_rows(s), chart_rows(s) == 1 ? 39.0f : 0.0f) ||

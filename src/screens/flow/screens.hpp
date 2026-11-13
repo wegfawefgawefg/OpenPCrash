@@ -15,6 +15,7 @@
 
 struct FrontEnd;
 struct Ui;
+union SDL_Event;
 
 // logo_screen_* (0x12)
 struct LogoScreen {
@@ -161,6 +162,14 @@ NameEntryLayout name_entry_layout(Ui& ui);
 int name_entry_cell_glyph(Ui& ui, int page, int row, int col);
 // name_entry_screen_draw
 void name_entry_draw(FrontEnd& fe, Ui& ui, NameEntryScreen& n, bool cursors_lit);
+// name_entry_keys.cpp (port-only): the keyboard on the name entry. Typing goes straight into the
+// name, Backspace deletes the last glyph, Enter ends the entry; the pad stays retail's
+inline constexpr int name_typed_delete = -2;
+inline constexpr int name_typed_done = -3;
+// every SDL event before the bindings: true when the name entry took it into `typed`
+bool name_entry_event(FrontEnd& fe, Ui& ui, const SDL_Event& event);
+// SDL's text input on while the name entry is up
+void name_entry_text_input(FrontEnd& fe, bool on);
 // garage_hub.cpp: 0xD the garage hub
 void garage_hub_spawn(FrontEnd& fe, Ui& ui);
 void garage_hub_step(FrontEnd& fe, Ui& ui);

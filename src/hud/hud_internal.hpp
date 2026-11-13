@@ -21,6 +21,9 @@ struct HudFrame {
     float sprite_scale = 1;           // reticle sprites: 0.5 in any split screen
     float alpha = 1;                  // between the last two steps
     int view_count = 1;
+    // PC CONFIG's FIELD OF VIEW: the world's units (its 52 degrees) times this are the drawn
+    // view's, about its centre (fight_fov_unit, view/scene_camera.hpp); 1 at 52
+    float world = 1;
 };
 
 // units to sprite pixels; the world's screen x is mirrored with the port's frame
@@ -29,6 +32,14 @@ inline float hud_px(const HudFrame& f, float ux) {
 }
 inline float hud_py(const HudFrame& f, float uy) {
     return f.cy - uy * f.unit_y;
+}
+// a world screen point (the reticle's centre, the tracking point, a sense) to sprite pixels in
+// the drawn view
+inline float hud_wx(const HudFrame& f, float ux) {
+    return hud_px(f, ux * f.world);
+}
+inline float hud_wy(const HudFrame& f, float uy) {
+    return hud_py(f, uy * f.world);
 }
 inline float lerpf(float a, float b, float t) {
     return a + (b - a) * t;

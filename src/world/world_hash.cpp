@@ -40,6 +40,7 @@ PC_HASHED(LockMark, 12);
 PC_HASHED(LockWarning, 8);
 PC_HASHED(MotionTiming, 16);
 PC_HASHED(MountTrigger, 12);
+PC_HASHED(PcControls, 1);
 PC_HASHED(Prop, 728);
 PC_HASHED(Shot, 140);
 PC_HASHED(ShotThreatLists, 200);
@@ -50,7 +51,7 @@ PC_HASHED(StickFlick, 8);
 PC_HASHED(SupplyCraft, 180);
 PC_HASHED(VsBattle, 160);
 PC_HASHED(Weapon, 168);
-PC_HASHED(World, 335904);
+PC_HASHED(World, 335920);
 PC_HASHED(BattleState, 1648);
 #undef PC_HASHED
 
@@ -278,6 +279,9 @@ void put(Hasher& h, const VsBattle& v) {
 void put(Hasher& h, const LobbyRules& r) {
     put_all(h, r.online, r.team_end, r.ai_seats);
 }
+void put(Hasher& h, const PcControls& c) {
+    put_all(h, c.double_tap_step);
+}
 void put(Hasher& h, const FlyCamera& c) {
     put_all(h, c.position, c.yaw, c.pitch);
 }
@@ -304,7 +308,7 @@ std::uint64_t world_hash(const World& world) {
     put_fight(h, world);
     put_all(h, world.battle_phase, world.battle_state.result, world.battle_state.letterbox_state,
             world.battle_state.letterbox_time, world.story, world.garages, world.profile,
-            world.rumble, world.player_buttons);
+            world.rumble, world.player_buttons, world.player_controls);
     return h.h;
 }
 
@@ -359,6 +363,7 @@ void parts_of(const World& w, std::vector<std::pair<std::string, std::uint64_t>>
     out.emplace_back("profile", hash_of(w.profile));
     out.emplace_back("rumble", hash_of(w.rumble));
     out.emplace_back("player_buttons", hash_of(w.player_buttons));
+    out.emplace_back("player_controls", hash_of(w.player_controls));
 }
 
 } // namespace

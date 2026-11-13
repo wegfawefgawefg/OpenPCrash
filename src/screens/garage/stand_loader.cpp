@@ -5,9 +5,11 @@
 // start to its upload, and every screen's destroy waits for it first (stand_settle), so nothing
 // closes them under the worker.
 #include "cook/pack_library.hpp"
+#include "perf_log.hpp"
 #include "screens/garage/model_stand.hpp"
 #include "screens/ui/ui.hpp"
 
+#include <SDL3/SDL.h>
 #include <chrono>
 #include <cstdio>
 
@@ -23,7 +25,11 @@ void finish(Ui& ui, ModelStand& stand) {
     StandJob& job = *stand.job;
     const bool ok = job.read.get();
     if (ok) {
+        const std::uint64_t upload_start = perf_now();
         mech_load_upload(*job.mech, job.load, *ui.renderer, stand.textures);
+        SDL_Log("load: stand machine %s in %.1f ms (its upload %.1f ms)", job.key.c_str(),
+                static_cast<double>(perf_now() - job.started) * 1e-6,
+                static_cast<double>(perf_now() - upload_start) * 1e-6);
         stand.mechs.emplace(job.key, std::move(job.mech));
     } else {
         std::fprintf(stderr, "model stand: %s\n", job.load.error.c_str());
@@ -39,6 +45,7 @@ void begin(Ui& ui, ModelStand& stand) {
     stand.fighters.builds.back() = stand.asked_row;
     auto job = std::make_unique<StandJob>();
     job->key = stand.asked_key;
+    job->started = perf_now();
     job->mech = std::make_unique<MechParts>();
     std::string error;
     if (!mech_load_open(*job->mech, job->load, stand.fighters,

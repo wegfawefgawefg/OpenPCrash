@@ -166,7 +166,9 @@ front end update U (names a b x y start back up down left right, or a hex word, 
 `--vs N` enters state 6 with `vs_mode` from black (seat 0 the keyboard, the rest the pads, `--stage` the area) and the
 front end goes on from its answer. `--viewer` (or `--stage`, `--build`, `--camera`, `--script`, `--trace`, `--day`, `--safe-rect`) runs the stage viewer
 instead: a battle with player 1's fighter driven by the pads (or `--script`) behind the chase camera, or with `--camera`
-the free camera alone. `PHANTOMCRASH_SAVE_DIR` and
+the free camera alone. `--dance FILE` with `--camera` (dev, for fan clips) has `--build`'s machine dance alone at the
+origin with no stage, effects or shadow, over black or `--dance-white` white for difference matting; the table is
+offsets from its idle pose per tick, written by `tools/dance.py` (`src/mech/dance_pose.hpp`). `PHANTOMCRASH_SAVE_DIR` and
 `PHANTOMCRASH_GUBSY_ROOT` move the saves and gubsy's files for headless runs. Every state change is printed.
 `--route FILE` drives a whole run by states (presses, shots, a fight's kills and doors) and `PHANTOMCRASH_DEV_DAY`,
 `_WON` and `_BEATEN` jump the story: docs/playthrough.md.
@@ -201,7 +203,9 @@ conversations' pictures and the font below 0x10000, the movie's 0x225), its size
 region of the 640x480 layout its middle is in (a turned quad's middle where the turn puts it; a split view's layout
 fitted back to one view's); groups are shared with `(use NAME)`. The first match decides:
 
-- `centre`: stays in the box, clipped as retail (what matches nothing);
+- `centre`: stays in the box, clipped as retail (what matches nothing); in a wide window a centre quad wholly
+  outside the title-safe area is dropped: retail never showed it, but the wide viewport's spritemat stretch (w over
+  w - 1, a pixel or two at the box's edge) let its edge column through as a stray line (the records' label at x 0..32);
 - `left`, `right`: moved out by the frame's edge, clipped with it;
 - `free`: stays, clipped to the window: the reticle, lock boxes, marks and tags (world points), the hubs' wheels and
   the hangar's cards, which run on past the box, the conversations and barks;
@@ -250,6 +254,11 @@ they stop short of on the right and at the bottom by the gaps between them) stre
 durability and O.C gauges' bars stay with their frames (`centre`, by sprite: a 4-way view's bar crosses the
 right-anchor line).
 
+The cloak glow (model 0x4DD in the cockpit view, the blue over the view while camouflaged, `hud_meters_build`) is
+a quad a unit ahead, 1.5 wide: retail's 4:3 picture and a little more. In a wider view `effects_queue_cockpit` stretches
+it across by the aspect over 4:3, so it covers the window's sides (it stopped at x 130..1790 of 1920); at 4:3 it is
+untouched.
+
 The lens flare places the sun over the drawn 3D (`Effects::drawn_3d`, set by the scenery each frame) instead of
 retail's 576x448 safe area and draws unclipped, so in a wide window it follows the sun out; retail's projection
 without the divide by w and its 32 left, 16 up offset are kept (docs/bugs.md). Its fade and turn still measure the
@@ -297,22 +306,25 @@ phase, `(feather 24)` hides the 4:3 edge. Before and after sheets with 1:1 crops
 | screen (state) | background | treatment |
 |---|---|---|
 | press start, title (0x28, 0x15) | blue streaked picture 2643, scanline rows 2644, black bands 2645 | (a) the picture's 48-texel edge band mirrored out (its streaks run on); the rows sprite (flat across) and the bands repeated to the edges; the extensions end on whole pixels, so no gap line at the box's edge |
-| options, sound config, PC CONFIG, system, save, load, key config, name entry, spec, stock, schedule, KEEP SV, media player, VS setup, records (0x1A, 0x23, 0xA0, 0x27, 0x1F, 0x11, 0x10, 0x16, 0x24, 0x26, 0x20, 0x2B, 0x21, 0x2C, 0x1D) | the frame: a 640x480 scanline photo, a 640x96 header, a 640x104 footer (some pictures hold the footer, the records' the whole frame) | bars: cut 34 in (just inside the safe area and its frame line), their flat edge columns repeated, the header split at 260 so DAY and money go left and the title right; photo: rows 96..480 reflected at the safe edge, blurred by whole scanline periods (`lines 6`) so the lines run on, feathered over 24 px; a picture with the footer drawn in keeps that footer's plain bar run on the right from row 376 (its meter never reflected); key config's right side carries on the picture's left half (`fill`), so its pad isn't mirrored |
+| options, sound config, PC CONFIG, system, save, load, key config, name entry, spec, stock, schedule, KEEP SV, media player, VS setup, records (0x1A, 0x23, 0xA0, 0x27, 0x1F, 0x11, 0x10, 0x16, 0x24, 0x26, 0x20, 0x2B, 0x21, 0x2C, 0x1D) | the frame: a 640x480 scanline photo, a 640x96 header, a 640x104 footer (some pictures hold the footer, the records' the whole frame) | bars: cut 34 in (just inside the safe area and its frame line), their flat edge columns repeated, the header split at 260 so DAY and money go left and the title right; photo: rows 96..480 reflected at the safe edge, blurred by whole scanline periods (`lines 6`) so the lines run on, feathered over 24 px; a picture with the footer drawn in keeps that footer's plain bar run on the right from row 376 (its meter never reflected); key config's right side carries on the picture's left half (`fill`), so its pad isn't mirrored; pieces of a frame picture cut out to write over the title go right with it (PC CONFIG's P, cut from OPTION, beside the C from the sound config's header; it was left behind in the box); the garage name plate (3080, sliding in from the left) carried on from its flat left end |
 | records and save files checks (9, 0x2E) | a striped card picture (slot 549) | (a) reflected at its sides |
 | screen adjust (0) | a fight's picture with its HUD drawn in | (c) a blurred (10), dimmed (0.5) copy behind |
 | parts editor (4) | the frame | frame; HANGAR 01 plate left, BODY SOCKET count right |
 | area select, job menu (3) | the frame, the tab bar 857 | frame; the tab bar clamped to the left edge |
-| hangar (0xE) | the frame's picture | frame; the wheel's cards and numbers free (the neighbouring garages and their machines show), the shaded ends 1574 and 1575 out to the sides, the plates' bar clamped |
-| garage hub, Club Wired, Plus Tech, Wild Machines (0xD, 8, 0x1B, 0xF) | a picture holding the header tab with its motto, a 640x184 footer with the place's logo; their lists and the used Scoobees framed | `(shows ...)`: on the wheel, the black top repeated, the tab carried on from its plain 12-texel edge strip (softly, never the motto), the photo reflected softly with its lines from the tab down on the left and from the top on the right, DAY and money staying on the tab; the footer split at 300 so the logo and the meter go right, the now-playing line running on to them (`ticker-end`); the wheel free. The other pages take the frame |
+| hangar (0xE) | the frame's picture | frame; the wheel's cards free with everything on them (the cards' band, y 100..340: a For Sale card's price digits, the names, class and warning marks, which retail's safe area cut at the box's edge on a side card), so the neighbouring garages and their machines show; the shaded ends 1574 and 1575 out to the sides, the plates' bar clamped |
+| garage hub, Club Wired, Plus Tech, Wild Machines (0xD, 8, 0x1B, 0xF) | a picture holding the header tab with its motto, a 640x184 footer with the place's logo; their lists and the used Scoobees framed | `(shows ...)`: on the wheel, the black top repeated, the tab carried on from its plain 12-texel edge strip (softly, never the motto), the photo reflected softly with its lines from the tab down on the left and from the top on the right, DAY and money staying on the tab; the footer split at 300 so the logo and the meter go right, the now-playing line running on to them (`ticker-end`); the wheel free. The other pages take the frame; Wild Machines' title bars (USED-SV 3032, the used modules' 2884) and the line under the used Scoobees' class marks (3021) run in from the window's left edge (`clamp`, cut 34 in) |
 | help menu (0x13) | as the hubs, a 640x72 header | as the hubs, the header's flat edges repeated; Pepper right |
 | town map (0x29) | the map picture 2668 with its place marks, the TOWN MAP logo and the footer drawn in, a 640x72 header | the camouflage carried on from a mark-free strip along the map's top (rows 26..78), mirrored across and reflected about its rows' middles so the fine lines stay in step, blurred by 10 and dimmed to 0.9 (the strip is lighter than the map's edges) under one fading reflection of the map's own edge, feathered over 32 px; below row 356 (left) and 374 (right) the logo's, music bar's and footer's flat bands repeated; header split; the place line along the header free |
 | Sonic Amp (0x14) | the frame, the spotlight band 2444, the tab bar 2463 | frame; the band and bar (flat across) repeated to the edges; the banner line along the header runs on with it (the frame's text rules free any line along a 640x72 header: the dealers' help line too) |
-| dealer (0x22) | the frame over the scrolling backdrop | frame |
+| dealer (0x22) | the dealer's blueprint loop (four images, 640+640+640+200 texels, whose ends meet) scrolling left 0.5 px an update behind the 640x72 header and 640x104 footer | the loop is drawn on to the window's edges by the screen itself (`backdrop_draw`: retail's three images, then the ones after and before them as far as the window reaches; at 4:3 nothing is added), the images `free`, sharp, scrolling with the rest; never reflected or blurred. Before, the frame's picture rule caught the 640x480 images: each was reflected and blurred at the box's edges (so the sides slid the other way) and its top rows split and clamped as a header (the cut at the top). The band over the footer (1212 at y 350) and the menu plate's lines (1213, sliding in from the left) carried on from their flat left ends (`clamp`); bars as the frame |
 | result (0x1E) | the demo battle (3D, full width) | frame bars over it |
 | conversations (0x30..0x9D) | the place's frame picture (talk slot, 640x480) | header rows' flat edges repeated and split at 260, picture rows 72..300 reflected softly with their lines every 8 rows, footer rows split at 300 (the logo right) and the now-playing line running on to it; the portrait (264x336) right, the skip hint right |
 | movies (0x9E, 0x2D, 2, 0x19, 0xB, 0x25, 0xC) | the movie frame (slot 0x225) | (c) a blurred (14), dimmed (0.45) copy of the frame behind the 4:3 picture, never stretched |
 | logos (0x12), the night (0x18) | black (the original's) | none: the logos sit on the original's black |
-| fights, test drive, free play, the replay, the attract demo, the ending's scene (6, 0x2F, 0x2A, 5, 1, 0xA) | the 3D, full width | the HUD group: corners left and right, world marks free, messages centred; the letterbox, pause dim and masks over the whole window |
+| fights, test drive, free play, the attract demo, the ending's scene (6, 0x2F, 0x2A, 1, 0xA) | the 3D, full width | the HUD group: corners left and right, world marks free, messages centred; the letterbox, pause dim and masks over the whole window |
+| the replay (5) | the 3D, full width, under `replay_screen_draw`'s see-through black bars (3075 at the top, 2242 at the bottom, 656 wide from x 0) | the bars carried on to the window's edges (`clamp`: flat across); the view's name and both pairs of arrows beside it (the plain 2238 / 2240 and the blinking 2239 / 2241, which retail draws from the row after `replay_sprites`) centred together; REPLAY and the A RETURN hint to the corners; the rest as the HUD group. Before, the bars stopped at the box's safe area and the hud group's regions split the arrows (the left blinking arrow, middle x 229, went out to the window's left edge as a stray arrow) |
+
+Animated backgrounds (checked 2026-11-13, `captures/widescreen_bg/`): the dealers' blueprint loop is the only moving background that reaches the box's edges, and the only one drawn on past them. The rest move inside the box and stay as retail places them: Plus Tech's three drifting layers behind the stand (transparent at their sides, 29..595 across), Wild Machines' turning frames and monitor strip, the title's scrolling column at x 320. The pictures behind every other menu (hubs, Wild Machines' used Scoobees, the media player, KEEP SV, the town map...) are still photos with no more art past their edges, so their softly reflected sides stay.
 
 ## Differs from the original
 
@@ -393,6 +405,15 @@ phase, `(feather 24)` hides the 4:3 edge. Before and after sheets with 1:1 crops
   same. A tournament's pause is retail's PAUSE with Start the only way out; quitting is the window's close button. VS's
   pause is free play's two items on every entered seat's pad, its quit asking first (`vs_quit_box`); Yes ends the round
   to the title from the front end (retail sets `vs_end_state` 5 in the battle; online it would have to be an input).
+- Every pause has the port's OPTIONS, PC CONFIG and REPORT A BUG buttons under it (`src/screens/pc/pause_settings.*`,
+  docs/settings.md "From the pause"): free play's and VS's cursor runs on from Continue and Quit into them (A or a
+  click opens one), a tournament's pause gets a cursor of its own over them, starting from y 258 so all three clear
+  the entrance's letterbox (under a menu's plate they start at 300). OPTIONS and PC CONFIG open PC CONFIG's pages over
+  the paused fight, drawn through `Ui::panel` (its sprites lifted over the pause and the HUD, to layer 0x7000 up, and
+  anchored by PC CONFIG's widescreen rules, `quad_panel`); the pause shows only its dim under it. Closing it returns to
+  the pause on the same item. The mouse is free in any pause (docs/input.md). Checked 2026-11-13 with `--hash 1` on
+  a tournament fight paused at the same update with and without the panel (OPTIONS' BGM and SOUND's MASTER changed
+  in it): the same hash lines. Captures in `captures/pause_settings/`.
 - The lost-pad pause (kind 2) in every fight: outside VS when player 0's last gamepad goes, in VS when an entered seat's
   device goes. It pauses once with the reconnect box (the lowest missing seat's number); Start on whatever is left goes on
   and the pulled seat reads a pad at rest. Retail blocks Start until the pad is back.
@@ -435,7 +456,8 @@ phase, `(feather 24)` hides the 4:3 edge. Before and after sheets with 1:1 crops
   items are 43 apart as retail's six (from y 121), the column centred where retail's was, so it starts half a step
   higher (y 99.5) and ends under the footer's rule (captures/platform/options_seven.png).
 - In menus the mouse buttons also press the triggers their fight binding names (left: right trigger, right: left
-  trigger); nothing ported reads the triggers in menus, but name entry's page tabs will.
+  trigger); the screens that page on the triggers (Sonic Amp's chart, the media catalogue, the schedule, name entry)
+  take them off while a click lands (`menu_pad_unclicked`, docs/input.md "Mouse in menus").
 - The model stand loads at once instead of on a thread. The shops' stand model 0x4D9 isn't drawn: it sits
   outside retail's 4:3 view and would show at the edge of a wide window.
 - The name in name entry is drawn in 18 px cells (`wide_text_draw`), the caret's step.

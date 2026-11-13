@@ -220,6 +220,14 @@ A file, by example (`build/pc_import_xbox_save --roundtrip out.sexp` writes a fu
 - Validation: the `(save (version 1))` header, every form the writer always writes, every field in them, numbers where
   numbers go and indexes in range. Anything else fails the read as `SaveRead::Damaged`. A missing file is
   `SaveRead::Missing`. A new version adds a reader for the old one rather than breaking it.
+- The port's additions: `area-selected` and `map-spin-money` in `(story ...)` (docs/bugs.md), and the `(pc-rules
+  (cheated B) (infinite-money B) (tune-divisor N) (shop-divisor N) (money-won N))` form after `(pools ...)`: PC CONFIG's
+  CHEATS (docs/settings.md, "CHEATS"; `Story::cheats`, `src/story/cheat_rules.hpp`), so a save remembers how it was
+  played. It is optional: a save from before it (or one with the form taken out) loads as retail with no cheats, and an
+  older build reading a newer save ignores it. When present every field must be there and each value one of its rule's
+  choices (tune 1, 10, 20, 100, 200 or 0 for FREE; shop 1, 2, 4; money won 1, 2, 5, 10), else the slot is damaged.
+  Checked 2026-11-13: cheats set and saved through the save menu, the slot loaded back with the flags kept, and the
+  same file without the form loaded as RETAIL (`captures/cheats/load_*.png`).
 - Writing goes to `slot<N>.sexp.tmp` and is renamed over the slot, so a failed or interrupted write leaves the old save.
 - Three slots that all work, a file each, so one damaged slot never blocks the others (retail used only slot 0 and failed
   the whole file on one bad slot; docs/bugs.md).

@@ -123,6 +123,18 @@ void write_story(Out& out, const Story& story) {
     put(out, ")\n");
 }
 
+// the port's cheats and price rules (story/cheat_rules.hpp); a save without the form is retail
+void write_rules(Out& out, const CheatRules& rules) {
+    put(out, "\n;; PC CONFIG's CHEATS (src/story/cheat_rules.hpp): tune-divisor 0 is free; a save "
+             "without this form is retail\n(pc-rules");
+    flag(out, "cheated", rules.cheated);
+    flag(out, "infinite-money", rules.infinite_money);
+    field(out, "tune-divisor", rules.tune_divisor);
+    field(out, "shop-divisor", rules.shop_divisor);
+    field(out, "money-won", rules.money_won);
+    put(out, ")\n");
+}
+
 // --- garages ---
 
 void write_garages(Out& out, const Garages& garages) {
@@ -403,6 +415,7 @@ std::string save_text(const SaveImage& image) {
     named(out, "written", gsexp::quote_string(iso_time(image.written)));
     put(out, ")\n");
     write_story(out, image.story);
+    write_rules(out, image.story.cheats);
     write_garages(out, image.garages);
     write_profile(out, image.profile, image.machine);
     put(out, "\n;; today's RumbleContexts (the tournament is story's lineup): queues and rosters\n");

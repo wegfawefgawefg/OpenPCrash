@@ -12,6 +12,7 @@
 #include "talk/draw2d.hpp"
 #include "world/world.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -51,6 +52,23 @@ MapSpot marker_spot(Ui&, int spot) {
                                   {75, 279, true},   {315, 251, true},  {478, 243, true},
                                   {503, 135, false}, {434, 64, false}};
     return spots[spot & 7];
+}
+// PC: the places' hit boxes for the pointer, by ring position (cursor = 7 - spot): each place's
+// lit number and name label (its rows 0 and 1, drawn from their top left), as one box
+void spot_rects(Ui& ui, PointerRect (&rects)[8]) {
+    for (int cursor = 0; cursor < 8; ++cursor) {
+        PointerRect box = {1e9f, 1e9f, -1e9f, -1e9f};
+        for (int row = 0; row < 2; ++row) {
+            const SpotRow r = spot_row(ui, 7 - cursor, row);
+            const PointerRect part = sprite_rect(ui, r.sprite, static_cast<float>(r.x),
+                                                 static_cast<float>(r.y));
+            box.left = std::min(box.left, part.left);
+            box.top = std::min(box.top, part.top);
+            box.right = std::max(box.right, part.right);
+            box.bottom = std::max(box.bottom, part.bottom);
+        }
+        rects[cursor] = box;
+    }
 }
 std::string spot_label(Ui& ui, int spot) {
     const UiTable* labels = ui_table(ui.data, "town_map", "town_map_spot_labels");
@@ -190,15 +208,46 @@ int spot_from_state(const FrontEnd& fe, int state) {
 }
 
 // the spin of the right stick (town_map_screen_step3's second half)
+// PC: the skater's middle on screen (marker_draw's landed spot, without the bob)
+void skater_centre(Ui& ui, const TownMapScreen& t, float& x, float& y) {
+    const MapSpot at = marker_spot(ui, t.spot);
+    x = at.x + static_cast<float>(sprite_width(ui, marker_sprite)) * 0.5f;
+    y = at.y + static_cast<float>(sprite_height(ui, marker_sprite)) * 0.5f;
+}
+
 void stick_spin(FrontEnd& fe, Ui& ui, TownMapScreen& t) {
-    const PadStick& stick = ui.pad.stick[1];
-    if (stick.x == 0 && stick.y == 0) {
+    float sx = static_cast<float>(ui.pad.stick[1].x);
+    float sy = static_cast<float>(ui.pad.stick[1].y);
+    // PC: a left press on the landed skater grabs him, and circling the pointer round him spins
+    // him as circling the right stick does, until the button comes up
+    float cx = 0.0f;
+    float cy = 0.0f;
+    skater_centre(ui, t, cx, cy);
+    if (ui.pointer.left && t.landed_at != -1) {
+        const float r = static_cast<float>(sprite_height(ui, marker_sprite)) * 0.6f + 8.0f;
+        PointerRect grab = {cx - r, cy - r, cx + r, cy + r};
+        t.spin_drag = pointer_inside(ui.pointer, grab);
+    }
+    if (!ui.pointer.held) {
+        t.spin_drag = false;
+    }
+    if (t.spin_drag && sx == 0.0f && sy == 0.0f) {
+        sx = ui.pointer.x - cx;
+        sy = ui.pointer.y - cy; // the pad record's stick y and the screen's both run down here: circling the pointer clockwise spins him clockwise
+        if (sx * sx + sy * sy < 9.0f) {
+            sx = sy = 0.0f; // right over his middle: no direction yet
+            if (t.stick_held) {
+                return; // keep his angle while the pointer crosses the middle
+            }
+        }
+    }
+    if (sx == 0.0f && sy == 0.0f) {
         t.stick_held = false;
         t.stick_start = 0.0f;
         t.stick_angle = 0.0f;
         return;
     }
-    const float at = std::atan2(static_cast<float>(stick.y), static_cast<float>(stick.x));
+    const float at = std::atan2(sy, sx);
     if (!t.stick_held) {
         t.stick_held = true;
         t.stick_start = at;
@@ -280,7 +329,10 @@ void town_map_step(FrontEnd& fe, Ui& ui) {
         } else {
             int cursor = 7 - t.spot;
             t.prev_spot = t.spot;
-            if (menu_cursor(ui, cursor, 0, 8, cursor_ring, 0, 4)) {
+            PointerRect rects[8];
+            spot_rects(ui, rects);
+            // no hovering onto places while the skater is held for a spin
+            if (menu_cursor(ui, cursor, 0, 8, cursor_ring, 0, 4, t.spin_drag ? nullptr : rects)) {
                 ui_sound(ui, bank_sys, se_town_map_cursor);
                 t.landed_at = -1;
                 const int area = 7 - cursor;
@@ -295,7 +347,11 @@ void town_map_step(FrontEnd& fe, Ui& ui) {
         stick_spin(fe, ui, t);
         town_map_draw(fe, ui, t);
         t.frame += 1;
-        if (menu_accept(ui)) {
+        // a click goes only on the chosen place (it hovers there first); the pad's A anywhere
+        PointerRect chosen[8];
+        spot_rects(ui, chosen);
+        // (not the press that grabs the skater to spin him)
+        if (!t.spin_drag && menu_accept(ui, &chosen[7 - t.spot])) {
             ui_sound(ui, bank_sys, se_menu_accept);
             t.left_at = t.frame;
             t.fade_count = static_cast<int>(static_cast<float>(ui.frame_cadence) * 0.5f);

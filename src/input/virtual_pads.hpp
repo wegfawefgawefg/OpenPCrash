@@ -6,7 +6,10 @@
 // lb rb ls rs, the triggers lt rt, and the sticks lx+ lx- ly+ ly- rx+ rx- ry+ ry- (y+ up).
 // The pads go through SDL and gubsy as real ones do. PHANTOMCRASH_MOUSE_MOVE="F:DX:DY,..." pushes
 // a mouse motion of DX, DY counts at frame F (a flick, for checking mouse aim headless), and
-// PHANTOMCRASH_KEY_PRESS="F:KEY,..." taps a key at frame F by its SDL name (Return, Right...).
+// PHANTOMCRASH_KEY_PRESS="F:KEY,..." taps a key at frame F by its SDL name (Return, Right...);
+// PHANTOMCRASH_MOUSE_WHEEL="F:N,..." turns the wheel N notches at frame F (away positive);
+// PHANTOMCRASH_MOUSE_CLICK="F:B,..." clicks mouse button B (1 left, 3 right) at frame F.
+// PHANTOMCRASH_TEXT="F:text,..." types text at frame F (SDL's text event, as the name entry reads).
 // PHANTOMCRASH_PAD_UNPLUG="F:P,..." pulls virtual pad P out at frame F (the lost-controller box).
 // PHANTOMCRASH_PAD_SPIN="F:P:N[:REACH[:X:Y]]" makes virtual pad P a worn pad whose sticks rest at
 // X, Y and reach REACH, turned round their edges from frame F for N frames (virtual_pads.cpp).

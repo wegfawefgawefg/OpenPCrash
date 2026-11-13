@@ -69,6 +69,9 @@ enum QuadAnchor : std::uint8_t {
 // and is anchored out from it: the port's 3D fills the window, retail's filled the screen
 // (docs/screens.md "Widescreen")
 inline constexpr std::uint32_t quad_full_window = 0x10000000;
+// port-only flag: drawn by a panel of the port's over the screen (the pause's PC CONFIG,
+// src/screens/pc/pause_settings.hpp), anchored by the panel's own rules rather than the screen's
+inline constexpr std::uint32_t quad_panel = 0x20000000;
 
 struct Draw2D {
     std::vector<Quad2D> quads;

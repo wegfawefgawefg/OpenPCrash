@@ -335,6 +335,8 @@ void battle_result_build(World& world, const Fighter& f) {
     if (r.rented) {
         r.prize = static_cast<int>(static_cast<unsigned>(r.prize) >> 1);
     }
+    // the port's MONEY WON rule (PC CONFIG's CHEATS, story/cheat_rules.hpp): x1 is retail
+    r.prize = cheat_prize(world.story.cheats, r.prize);
     // a repair is 0.2 x the part's tune-0 price + 0.01 x its tuned price (float, as retail)
     const auto repair = [&](int kind, int id, int tune) {
         const int tuned = part_shop_price(t, kind, id, tune);

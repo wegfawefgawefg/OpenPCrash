@@ -252,6 +252,46 @@ int collision_query_sphere(const StageCollision& grid, SphereQuery& sphere) {
     return contact;
 }
 
+int collision_prop_sphere(const StageCollision& grid, const FxTri (&tris)[12],
+                          SphereQuery& sphere) {
+    int contact = 0;
+    for (const FxTri& tri : tris) {
+        // the crossing's frame, moved to height radius and back: the centre radius + 0.05 over
+        // the face, the velocity into it bounced
+        FxSegmentHit hit;
+        if (!segment_tri_hit(tri, sphere.previous, sphere.centre, false, crossing_margin, &hit)) {
+            continue;
+        }
+        const Fx into = dot(tri.normal, sphere.velocity);
+        if (into < Fx{}) {
+            sphere.velocity =
+                replace_along(sphere.velocity, tri.normal, bounced(into, sphere.bounce));
+        }
+        sphere.centre = tri_point_at_height(tri, sphere.centre, sphere.radius + frame_lift);
+        contact |= contact_slide;
+    }
+    if (!contact) {
+        for (const FxTri& tri : tris) {
+            contact |= face_test(grid, StageTriangle{tri, 0}, sphere);
+        }
+    }
+    if (!contact) {
+        for (const FxTri& tri : tris) {
+            if (edge_push(StageTriangle{tri, 0}, sphere)) {
+                contact |= contact_edge;
+            }
+        }
+    }
+    if (!contact) {
+        for (const FxTri& tri : tris) {
+            if (corner_push(StageTriangle{tri, 0}, sphere)) {
+                contact |= contact_corner;
+            }
+        }
+    }
+    return contact;
+}
+
 const StageTriangle* collision_surface_face(const StageCollision& grid, FxVec3 centre, Fx reach,
                                             std::uint32_t bit) {
     const Cell c = cell_of(grid, centre, Fx{});

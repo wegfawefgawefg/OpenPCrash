@@ -9,9 +9,11 @@
 #include "battle/battle_spawn.hpp"
 #include "battle_run.hpp"
 #include "cook/pack_library.hpp"
+#include "input/devices.hpp"
 #include "render/renderer.hpp"
 #include "render/vk_sprites.hpp"
 #include "screens/flow/front_end.hpp"
+#include "screens/pc/pc_settings.hpp"
 #include "state.hpp"
 #include "view/combat_viewer.hpp"
 #include "world/world.hpp"
@@ -43,6 +45,13 @@ void battle_clear(World& world) {
     vs = VsBattle{};
     vs.wins = wins;
     vs.losses = losses;
+}
+
+// where a seat's view camera came from (scene_cameras_step), for FIELD OF VIEW
+int seat_source(const BattleRun& run, int seat) {
+    return seat >= 0 && seat < max_pad_players
+               ? run.cameras.seats[static_cast<std::size_t>(seat)].source
+               : -1;
 }
 
 } // namespace
@@ -140,6 +149,10 @@ bool battle_vs_start(BattleRun& run, State& state, FrontEnd& fe, Ui& ui, Rendere
     run.vs_rumble_slot = world.battle_state.rumble;
     RumbleSlot& rumble = world.rumble[run.vs_rumble_slot];
     run.vs_rumble = rumble; // the save's day, put back after the round
+    // each seat's PC control settings (its own settings profile's), read at its spawn
+    if (fe.pc && fe.pc->gubsy) {
+        pc_controls_commit(world, *fe.pc->gubsy);
+    }
     rumble.entrants = count;
     unsigned seat_mask = 0;
     for (int j = 0; j < fighter_slots; ++j) {
@@ -245,6 +258,7 @@ bool battle_vs_draw(BattleRun& run, State& state, Renderer& renderer, float alph
     for (int v = 0; v < run.layout.count; ++v) {
         const SplitView& split = run.layout.views[static_cast<std::size_t>(v)];
         views[v].camera = interpolate_seat_camera(state.view, split.seat, alpha);
+        fight_fov_apply(views[v].camera, seat_source(run, split.seat), renderer.options.fov);
         std::copy(split.drawn, split.drawn + 4, views[v].rect);
         std::copy(split.rect, split.rect + 4, views[v].sprite_rect);
         views[v].seat = split.seat;
@@ -259,6 +273,7 @@ void battle_vs_hud(BattleRun& run, State& state, Ui& ui, const Renderer& rendere
         const SplitView& split = run.layout.views[static_cast<std::size_t>(v)];
         HudScreen screen{interpolate_seat_camera(state.view, split.seat, alpha), renderer.width,
                          renderer.height, run.scenery->safe_rect};
+        fight_fov_apply(screen.camera, seat_source(run, split.seat), renderer.options.fov);
         screen.view = run.layout.count > 1 ? v : -1;
         screen.sprite_shift = renderer_sprite_frame(renderer, screen.view).shift;
         std::copy(split.rect, split.rect + 4, screen.rect);

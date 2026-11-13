@@ -329,7 +329,7 @@ std::string pc_page_help(int page) {
         return "Set the window, the resolution, the frame rate and the HUD's width and size.";
     case page_picture:
         return "Set how the picture is drawn: its scale, smoothing, shape, brightness, flashes, "
-               "shake and focus.";
+               "shake, field of view and focus.";
     case page_sound:
         return "Set the PC's volumes over the original's.";
     case page_input:
@@ -338,6 +338,11 @@ std::string pc_page_help(int page) {
         return "Set the keys, mouse buttons and pad buttons.";
     case page_game:
         return "Set the conversations and pausing.";
+    case page_cheats:
+        return "Cheats and cheaper prices for this game.";
+    case page_options:
+        return "Set the original's options a fight can take: vibration, the BGM and SE volumes "
+               "and the screen adjust.";
     default:
         return "Return to the options.";
     }

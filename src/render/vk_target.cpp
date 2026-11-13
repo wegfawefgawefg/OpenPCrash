@@ -1,5 +1,7 @@
 #include "render/vk_internal.hpp"
 
+#include "perf_log.hpp"
+
 #include <SDL3_image/SDL_image.h>
 #include <algorithm>
 
@@ -23,6 +25,19 @@ VkPresentModeKHR present_mode(RendererState& vk) {
         }
     }
     return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+const char* present_mode_name(VkPresentModeKHR mode) {
+    switch (mode) {
+    case VK_PRESENT_MODE_FIFO_KHR:
+        return "fifo (v-sync)";
+    case VK_PRESENT_MODE_MAILBOX_KHR:
+        return "mailbox";
+    case VK_PRESENT_MODE_IMMEDIATE_KHR:
+        return "immediate";
+    default:
+        return "other";
+    }
 }
 
 bool make_swapchain(RendererState& vk, VkExtent2D extent) {
@@ -65,6 +80,7 @@ bool make_swapchain(RendererState& vk, VkExtent2D extent) {
         }
     }
     info.presentMode = present_mode(vk);
+    vk.present_mode = info.presentMode;
     info.clipped = VK_TRUE;
     info.oldSwapchain = vk.swapchain;
     VkSwapchainKHR next = VK_NULL_HANDLE;
@@ -80,6 +96,15 @@ bool make_swapchain(RendererState& vk, VkExtent2D extent) {
     vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &count, nullptr);
     vk.swap_images.resize(count);
     vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &count, vk.swap_images.data());
+    // a present's semaphore an image
+    while (vk.finished.size() < count) {
+        VkSemaphoreCreateInfo semaphore{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        VkSemaphore made = VK_NULL_HANDLE;
+        if (!vk_check(vkCreateSemaphore(vk.device, &semaphore, nullptr, &made), "semaphore")) {
+            return false;
+        }
+        vk.finished.push_back(made);
+    }
     return true;
 }
 
@@ -293,6 +318,8 @@ bool vk_fit_window(RendererState& vk, Renderer& renderer) {
     vk_reset_descriptors(vk);
     renderer.width = width;
     renderer.height = height;
+    perf_swapchain(1, present_mode_name(vk.present_mode), static_cast<int>(vk.swap_images.size()),
+                   static_cast<int>(extent.width), static_cast<int>(extent.height), width, height);
     return true;
 }
 

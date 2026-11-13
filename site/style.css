@@ -1,18 +1,30 @@
-/* OpenPCrash's page: the setup screen's look (blue bands with white edges, black, yellow words),
-   in Jost (fonts/, SIL Open Font License). No art from the original game. */
+/* OpenPCrash's page. The game's front end in our own drawing: blue streaks and scanlines, angled
+   header plates, cut-corner panels, yellow-on-black cursor plates, the HUD's green readouts.
+   Fonts: Barlow Condensed and Jost (fonts/, SIL Open Font License). No art from the original game;
+   the pictures in shots/ are screenshots of OpenPCrash running. */
 @font-face { font-family: "Jost"; font-weight: 500; src: url("fonts/Jost-Medium.ttf") format("truetype"); font-display: swap; }
 @font-face { font-family: "Jost"; font-weight: 700; src: url("fonts/Jost-Bold.ttf") format("truetype"); font-display: swap; }
-@font-face { font-family: "Jost"; font-weight: 800; font-style: italic; src: url("fonts/Jost-ExtraBoldItalic.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("fonts/BarlowCondensed-SemiBold.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url("fonts/BarlowCondensed-Bold.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; font-weight: 700; font-style: italic; src: url("fonts/BarlowCondensed-BoldItalic.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; font-weight: 800; font-style: italic; src: url("fonts/BarlowCondensed-ExtraBoldItalic.woff2") format("woff2"); font-display: swap; }
 
 :root {
-  --blue: #123aaa;
-  --blue-edge: #3c68dc;
-  --deep: #06143f;
-  --ink: #000;
-  --panel: #02081e;
+  --ink: #010309;
+  --night: #040b22;
+  --deep: #071848;
+  --blue: #1546c4;
+  --streak: #2f7bff;
+  --sky: #8fc4ff;
+  --teal: #2c6a74;
   --white: #fff;
-  --grey: #b0bad6;
-  --yellow: #fcc400;
+  --grey: #aab6d4;
+  --yellow: #ffc400;
+  --hud: #43f59a;
+  --hud-dim: #1f7d55;
+  --cut: 18px;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -22,70 +34,213 @@ html { background: var(--ink); }
 body {
   margin: 0;
   color: var(--white);
-  font: 500 18px/1.55 "Jost", system-ui, sans-serif;
+  font: 500 17px/1.6 "Jost", system-ui, sans-serif;
+  overflow-x: hidden;
+  /* scanlines over a faint grid over the night blue */
   background:
-    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 4px),
-    var(--deep);
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.32) 0 2px, transparent 2px 4px),
+    linear-gradient(rgba(67, 245, 154, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(67, 245, 154, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(170deg, var(--deep) 0, var(--night) 520px, var(--ink) 100%);
 }
 
-.frame { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+.sprites { position: absolute; width: 0; height: 0; overflow: hidden; }
 
-.band { background: var(--blue); }
-.band.top { border-bottom: 3px solid var(--white); box-shadow: 0 3px 0 var(--ink), 0 5px 0 var(--white); padding: 28px 0 22px; margin-bottom: 40px; }
-.band.bottom { border-top: 3px solid var(--white); margin-top: 56px; padding: 18px 0; font-size: 15px; color: var(--grey); }
-.band.bottom a { color: var(--white); }
+a { color: var(--yellow); }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.86em; color: var(--white); word-break: break-word; }
+strong, em { color: var(--white); font-style: normal; }
 
-h1 {
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+/* ---- the header plate: HUD readouts, the big italic name, the swoosh bar ---- */
+.top { position: relative; background: var(--ink); border-bottom: 2px solid var(--white); }
+.top .wrap { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-top: 10px; padding-bottom: 4px; }
+.readouts { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 600 15px/1.2 var(--display); letter-spacing: 0.08em; color: var(--hud); text-transform: uppercase; padding-bottom: 8px; }
+.readouts b { color: var(--white); font-weight: 600; }
+.name {
   margin: 0;
-  font: italic 800 clamp(44px, 9vw, 76px)/1 "Jost", system-ui, sans-serif;
+  font: italic 800 clamp(40px, 8vw, 84px)/0.9 var(--display);
   letter-spacing: 0.01em;
-  text-align: right;
+  color: var(--white);
+  text-shadow: 3px 3px 0 var(--blue);
+  white-space: nowrap;
 }
-.strap { margin: 6px 0 0; text-align: right; color: var(--white); }
+.name span { color: var(--yellow); }
+.swoosh { display: block; width: 100%; height: 34px; }
 
-h2 { font-weight: 700; font-size: 30px; margin: 0 0 12px; color: var(--yellow); }
-h3 { font-weight: 700; font-size: 20px; margin: 26px 0 6px; }
+/* ---- hero: the big screenshot under scanlines and lock-on brackets ---- */
+.hero { position: relative; margin: 0; background: var(--ink); border-bottom: 2px solid var(--white); overflow: hidden; }
+.hero img { display: block; width: 100%; height: auto; max-height: 82vh; aspect-ratio: 16 / 9; object-fit: cover; }
+.hero::after {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.28) 0 2px, transparent 2px 4px),
+    linear-gradient(to right, rgba(1, 3, 9, 0.75), transparent 42%),
+    linear-gradient(to top, rgba(1, 3, 9, 0.7), transparent 30%);
+  pointer-events: none;
+}
+.hero .lock { position: absolute; z-index: 1; inset: 14px; width: calc(100% - 28px); height: calc(100% - 28px); color: var(--hud); }
+.hero-text { position: absolute; z-index: 2; left: 0; bottom: 6%; max-width: 560px; }
+.strap {
+  margin: 0;
+  padding: 12px 56px 12px 24px;
+  font: italic 700 clamp(20px, 3vw, 34px)/1.1 var(--display);
+  color: var(--white);
+  background: var(--blue);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 0 100%);
+  border-top: 2px solid var(--white);
+}
+.strap span { color: var(--yellow); }
+.hero-tag { display: inline-block; margin: 0; padding: 4px 34px 4px 24px; font: 600 15px/1.3 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); background: var(--yellow); clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%); }
 
-section { background: var(--panel); border-radius: 18px; padding: 26px 28px; margin: 0 0 28px; }
-section p, section li { color: var(--grey); }
-section strong, section em { color: var(--white); font-style: normal; }
+/* ---- the panels: cut corners, a header bar with a number plate ---- */
+.plate {
+  position: relative;
+  margin: 0 0 30px;
+  padding: 0 26px 24px;
+  background: linear-gradient(160deg, rgba(21, 70, 196, 0.22), rgba(4, 11, 34, 0.92) 55%);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  border-left: 3px solid var(--sky);
+}
+.plate p, .plate li { color: var(--grey); }
+.bar {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 -26px 18px;
+  padding: 0 26px;
+  min-height: 44px;
+  background: linear-gradient(90deg, var(--ink) 0, var(--ink) 62%, var(--blue) 62%, var(--streak));
+  clip-path: polygon(0 0, 100% 0, 100% 62%, calc(100% - 40px) 100%, 0 100%);
+  border-bottom: 2px solid var(--white);
+}
+.bar h2 { margin: 0; font: italic 800 30px/1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--white); white-space: nowrap; }
+.bar .no { font: 600 13px/1 var(--display); color: var(--ink); background: var(--hud); padding: 3px 7px; letter-spacing: 0.08em; }
+.bar .tick { flex: 1; height: 8px; min-width: 0; background: repeating-linear-gradient(90deg, var(--hud-dim) 0 3px, transparent 3px 7px); opacity: 0.8; }
 
-code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.88em; color: var(--white); word-break: break-word; }
+h3 { margin: 24px 0 6px; font: italic 700 22px/1.2 var(--display); color: var(--yellow); letter-spacing: 0.02em; }
+h3::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 10px; background: var(--yellow); clip-path: polygon(0 0, 100% 50%, 0 100%); }
 
-.download { text-align: center; border: 3px dashed var(--white); }
+/* ---- layout: the download column beside the text, uneven on purpose ---- */
+.deck { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 0 30px; margin-top: 30px; align-items: start; }
+.deck > * { min-width: 0; }
 
+/* ---- downloads: the selected plate is black with yellow words, the cursor plate is yellow ---- */
+.download { padding-top: 0; order: 2; background: linear-gradient(160deg, rgba(44, 106, 116, 0.55), rgba(4, 11, 34, 0.92) 60%); border-left-color: var(--hud); }
 .button {
-  display: inline-block;
-  padding: 14px 34px;
-  border-radius: 14px;
-  background: var(--yellow);
-  color: var(--ink);
-  border: 4px solid #281e00;
-  font-weight: 700;
-  font-size: 26px;
-  letter-spacing: 0.04em;
-  text-decoration: none;
+  position: relative;
+  display: block;
+  margin: 4px 0 0;
+  padding: 14px 20px;
+  font: italic 800 clamp(24px, 3.4vw, 32px)/1 var(--display);
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  text-align: center;
+  text-decoration: none;
+  color: var(--yellow);
+  background: var(--ink);
+  border: 3px solid var(--white);
+  border-radius: 12px;
+  box-shadow: 0 0 0 3px var(--ink), 0 0 18px rgba(255, 196, 0, 0.25);
 }
-.button:hover, .button:focus-visible { background: #ffd83a; }
-.note { margin: 10px 0 18px; }
+.button:hover, .button:focus-visible { color: var(--ink); background: var(--yellow); border-color: var(--ink); box-shadow: 0 0 0 3px var(--yellow); outline: none; }
+.note { margin: 10px 0 16px; text-align: center; font-size: 15px; }
+.others { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.others li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 8px 16px;
+  background: rgba(1, 3, 9, 0.8);
+  border-left: 4px solid var(--yellow);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+.others a { font: italic 700 22px/1.2 var(--display); color: var(--yellow); text-decoration: none; text-transform: uppercase; letter-spacing: 0.03em; }
+.others a:hover, .others a:focus-visible { color: var(--white); }
+.others span { font-size: 14px; color: var(--grey); text-align: right; }
+.others li.current { border-left-color: var(--hud-dim); }
 
-.others { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-.others li { border: 3px solid var(--white); border-radius: 12px; padding: 8px 16px; background: #0e0e12; }
-.others li.current { opacity: 0.6; }
-.others a { color: var(--yellow); font-weight: 700; text-decoration: none; text-transform: uppercase; }
-.others span { display: block; font-size: 14px; color: var(--grey); }
+/* the HUD gauges: DURABILITY style bars with our own words */
+.gauges { margin: 22px 0 0; display: grid; gap: 10px; }
+.gauge { display: grid; grid-template-columns: 7.5em 1fr auto; align-items: center; gap: 10px; font: 600 15px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--hud); }
+.gauge i { display: block; height: 12px; border: 2px solid var(--hud); border-radius: 0 6px 6px 0; padding: 1px; background: rgba(1, 3, 9, 0.8); }
+.gauge i::before { content: ""; display: block; height: 100%; width: var(--fill); background: linear-gradient(var(--yellow), #e09a00); }
+.gauge.oc i::before { background: linear-gradient(#5aa0ff, var(--blue)); }
+.gauge b { color: var(--white); font-weight: 600; min-width: 3.4em; text-align: right; }
 
-.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; background: none; padding: 0; }
-.shot { margin: 0; aspect-ratio: 4 / 3; border: 3px solid var(--white); border-radius: 12px; background: #0e1b4a; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--grey); padding: 12px; }
-.shot img { width: 100%; height: 100%; object-fit: cover; border-radius: 9px; }
+.radar { float: right; width: 128px; height: 128px; margin: 0 0 8px 16px; color: var(--hud); }
+
+/* ---- screenshots: one big, the rest stacked beside it, each in lock-on corners ---- */
+.shots { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.shot { position: relative; margin: 0; grid-column: span 2; background: var(--ink); }
+.shot.wide { grid-column: span 4; grid-row: span 2; }
+.shot.half { grid-column: span 3; }
+.shot a { display: block; position: relative; line-height: 0; }
+.shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+.shot.wide img { height: 100%; }
+.shot a::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0 2px, transparent 2px 4px); }
+.shot .lock { position: absolute; z-index: 1; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); color: var(--white); opacity: 0.7; transition: opacity 0.15s, color 0.15s; pointer-events: none; }
+.shot .reticle { position: absolute; z-index: 1; left: 50%; top: 50%; width: 22%; height: auto; transform: translate(-50%, -50%) scale(1.4); color: var(--yellow); opacity: 0; transition: opacity 0.15s, transform 0.15s; pointer-events: none; }
+.shot a:hover .lock, .shot a:focus-visible .lock { color: var(--yellow); opacity: 1; }
+.shot a:hover .reticle, .shot a:focus-visible .reticle { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+
+.streaks { display: block; width: 100%; height: 40px; }
+.shot figcaption {
+  position: absolute; z-index: 2; left: 0; bottom: 8px;
+  padding: 3px 22px 3px 10px;
+  font: italic 700 15px/1.2 var(--display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--yellow);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.shot figcaption b { color: var(--blue); margin-right: 6px; }
+
+/* ---- the own-copy steps: numbered rings like the town map's spots ---- */
+.steps { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 12px; counter-reset: step; }
+.steps li { position: relative; padding: 10px 14px 10px 58px; background: rgba(1, 3, 9, 0.55); border-left: 3px solid var(--teal); }
+.steps li::before {
+  counter-increment: step;
+  content: "0" counter(step);
+  position: absolute; left: 10px; top: 10px;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center;
+  font: italic 800 19px/1 var(--display);
+  color: var(--ink); background: var(--white);
+  box-shadow: 0 0 0 3px var(--ink), 0 0 0 5px var(--white);
+}
 
 .paths { padding-left: 20px; }
 
-a { color: var(--yellow); }
+/* ---- footer: the bar again, the other way round ---- */
+.bottom { margin-top: 26px; background: var(--ink); border-top: 2px solid var(--white); font-size: 15px; color: var(--grey); }
+.bottom .swoosh { transform: scaleY(-1); }
+.bottom .wrap { padding-top: 8px; padding-bottom: 22px; }
+.bottom p { margin: 6px 0; }
+.bottom a { color: var(--white); }
+
+@media (max-width: 860px) {
+  .deck { grid-template-columns: minmax(0, 1fr); }
+  .download { order: 0; }
+  .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shot, .shot.half { grid-column: span 1; }
+  .shot.wide { grid-column: span 2; grid-row: auto; }
+  .shot.wide img { height: auto; }
+  .shot.half:last-child { grid-column: span 2; }
+}
 
 @media (max-width: 560px) {
-  body { font-size: 17px; }
-  section { padding: 20px 18px; }
-  .button { font-size: 21px; padding: 12px 22px; }
+  body { font-size: 16px; }
+  .top .wrap { flex-direction: column-reverse; align-items: flex-start; gap: 2px; }
+  .readouts { font-size: 13px; padding-bottom: 6px; }
+  .plate { padding: 0 16px 18px; }
+  .bar { margin: 0 -16px 16px; padding: 0 16px; }
+  .bar h2 { font-size: 24px; white-space: normal; padding: 6px 0; }
+  .hero-text { position: relative; bottom: auto; max-width: none; }
+  .hero::after { background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.28) 0 2px, transparent 2px 4px); }
+  .hero .lock { height: auto; aspect-ratio: 16 / 9; width: calc(100% - 28px); }
+  .strap { clip-path: none; padding-right: 24px; }
+  .shots { grid-template-columns: minmax(0, 1fr); }
+  .shot, .shot.half, .shot.wide, .shot.half:last-child { grid-column: auto; }
+  .radar { width: 92px; height: 92px; }
+  .others li { flex-direction: column; gap: 0; }
+  .others span { text-align: left; }
 }

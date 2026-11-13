@@ -196,7 +196,7 @@ The host sends a battle start. Every machine builds the same `World` from it:
 - the world's saved part: for VS, `game_state_new` with the VS rosters; for co-op, the host's story, garages and rumble
   slots, about 32 KB raw;
 - every seat's roster entry (build, tunes, colour, sticker, team) and seat config (button config, control type, camera
-  view);
+  view, and the PC's `World::player_controls[seat]`: DOUBLE TAP STEP, from the seat's own machine);
 - the RNG index (retail seeds it from the clock; the host picks it);
 - the stage selector, the lobby rules, and the step number.
 

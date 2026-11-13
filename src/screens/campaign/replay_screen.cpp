@@ -8,6 +8,7 @@
 #include "input/menu_input.hpp"
 #include "screens/campaign/campaign.hpp"
 #include "screens/flow/front_end.hpp"
+#include "screens/pc/music_panel.hpp"
 
 namespace {
 
@@ -54,12 +55,18 @@ void replay_screen_step(FrontEnd& fe, Ui& ui) {
             break; // main starts it on its next step
         }
         replay_draw(ui, c.replay_view);
+        fight_music_update(fe, ui); // replay_spawn_begin_next2's battle_music_update
         // pads_cursor_move(player 0, 0..5, horizontal and wrapping on a press, no sound); the
         // mouse wheel steps it too
         int view = c.replay_view;
         menu_cursor_move(ui.pad, view, 0, replay_views, cursor_horizontal | cursor_wrap_press);
-        if (ui.pointer.wheel != 0) {
+        // PC: and so does a click on the view's name (any other click is A)
+        const SpriteSlot* name = ui_slots(ui.data, "replay", "replay_sprites_2", view);
+        const PointerRect named =
+            name ? sprite_rect(ui, name->sprite, name->x, name->y) : PointerRect{};
+        if (ui.pointer.wheel != 0 || (ui.pointer.left && pointer_inside(ui.pointer, named))) {
             view = (view + (ui.pointer.wheel > 0 ? replay_views - 1 : 1)) % replay_views;
+            ui.pointer.left = false;
         }
         c.replay_view = view;
         // the record's end, the fight's end, or A (sound 5)

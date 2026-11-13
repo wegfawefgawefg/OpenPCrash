@@ -5,18 +5,22 @@
 // readout's panels (hud_draw_readout in the world, src/hud/hud_readout.cpp): uv_override_submit's
 // textured quads, each the unit quad with its sprite's own cut-out on stage 0 and its colour as
 // the factor. They draw under the HUD's identity view (pass_view_set), so the view is only the
-// port's z flip.
+// port's z flip. The cloak glow (0x4DD, the blue over the whole view while camouflaged) is a quad
+// a unit ahead sized for retail's 4:3 picture; a wider view stretches it across by the aspect's
+// excess, so it still covers the window's sides (docs/screens.md "Widescreen").
 #include "effects/effects.hpp"
 #include "hud/hud_cockpit.hpp"
 #include "render/mesh_flags.hpp"
 #include "render/mesh_queue.hpp"
 
 void effects_queue_cockpit(Effects& fx, const HudCockpit& cockpit, const ModelObject& quad,
-                           int quad_mesh, std::vector<PassItem>& items) {
+                           int quad_mesh, float aspect, std::vector<PassItem>& items) {
     if (!cockpit.shown) {
         return;
     }
     const Mat4 view = mat_scaling(1, 1, -1);
+    constexpr float aspect_43 = 4.0f / 3.0f;
+    const bool wide = aspect > aspect_43 + 0.001f;
     for (const CockpitModel& m : cockpit.models) {
         for (const auto& [slot, where] : fx.assets.slots) {
             if (slot != m.slot) {
@@ -28,8 +32,12 @@ void effects_queue_cockpit(Effects& fx, const HudCockpit& cockpit, const ModelOb
                 object.nodes[1].scale[0] = m.gauge;
             }
             const std::size_t first = items.size();
+            // the glow across a wide view
+            const Mat4 world = m.slot == cockpit_glow_model && wide
+                                   ? mat_multiply(mat_scaling(aspect / aspect_43, 1, 1), m.world)
+                                   : m.world;
             queue_object(object, set.gpu.object_mesh[static_cast<std::size_t>(where.second)],
-                         set.texture_base, port_matrix(m.world), 11, mesh_factor, view, items);
+                         set.texture_base, port_matrix(world), 11, mesh_factor, view, items);
             const int row = m.slot - cockpit_first_model;
             for (std::size_t i = first; i < items.size(); ++i) {
                 items[i].item.factor = m.factor;

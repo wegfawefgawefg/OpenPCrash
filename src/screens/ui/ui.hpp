@@ -92,7 +92,15 @@ struct Ui {
     // the split-screen view the sprites submitted now belong to (Sprite.view: the HUD sets its
     // player's while it draws), -1 for none
     int view = -1;
+    // port-only: a panel over the screen is drawing (the pause's PC CONFIG,
+    // screens/pc/pause_settings.hpp): its sprites are marked quad_panel and anchored by
+    // panel_anchors, and the layers under 0x1000 are lifted to 0x7000 up, over the pause and the
+    // HUD (pass 14) and under REPORT A BUG's panel
+    bool panel = false;
+    const AnchorScreen* panel_anchors = nullptr;
 };
+
+inline constexpr int panel_layer_lift = 0x7000;
 
 struct PackLibrary;
 bool init_ui(Ui& ui, Renderer& renderer, PackLibrary& packs, Audio* audio,

@@ -296,6 +296,13 @@ void read_player(InputDevices& devices, GubsyRuntime& runtime, const ReadOptions
     if (!pad_stick(pads, calibrations, profile, axis_2d_left_stick, zones, sample.stick[0])) {
         sample.stick[0][0] = keys(PadAction::LeftStickRight, PadAction::LeftStickLeft, lean);
         sample.stick[0][1] = keys(PadAction::LeftStickUp, PadAction::LeftStickDown, lean);
+        // AIR TURN: in the air, while the mouse aims, the mouse alone turns the machine
+        const bool mouse_aims = player_has(player, K::Mouse, 0) && options.mouse_captured &&
+                                profile_binds_2d(profile, axis_2d_mouse_aim, Gubsy2DAnalog::MOUSE_XY);
+        if (mouse_aims && options.rates[static_cast<std::size_t>(index)].air_turning &&
+            player_setting(runtime, index, air_turn_mouse_key, 1) != 0) {
+            sample.stick[0][0] = 0;
+        }
     }
     if (!pad_stick(pads, calibrations, profile, axis_2d_right_stick, zones, sample.stick[1])) {
         sample.stick[1][0] = keys(PadAction::RightStickRight, PadAction::RightStickLeft, 0x7FFF);
@@ -333,6 +340,7 @@ void seat_aim_rates(const World& world, ReadOptions& options) {
         rates.pitch = 0.05235988f / 2.0f;
         // Preferred: the aim lands within 45 degrees of the legs. A positive axis lowers aim_yaw
         // (the original's sense), so the target's room is aim_yaw - 45 .. aim_yaw + 45 degrees
+        rates.air_turning = f.airborne && !(f.control_type & control_type_standard);
         if (!(f.control_type & control_type_standard)) {
             const float aim = fx_float(angle_radians(f.aim_yaw));
             rates.twist_low = aim - 0.78539816f;
@@ -404,4 +412,11 @@ void read_pads(InputDevices& devices, GubsyRuntime& runtime, const ReadOptions& 
     devices.taps.clear();
     devices.mouse_x = devices.mouse_y = 0.0f;
     devices.wheel = 0.0f;
+}
+
+void pc_controls_commit(World& world, GubsyRuntime& runtime) {
+    for (int seat = 0; seat < 4; ++seat) {
+        PcControls& c = world.player_controls[seat];
+        c.double_tap_step = player_setting(runtime, seat, double_tap_step_key, 1) != 0;
+    }
 }

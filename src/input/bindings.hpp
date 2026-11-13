@@ -79,9 +79,17 @@ inline constexpr const char* stand_keys_key = "phantomcrash.input.stand_keys_giv
 // the install's: the players' own profiles from before Q and E (and the shoulders) were moved to
 // white and black, the left and right steps (register_input, once)
 inline constexpr const char* steps_sided_key = "phantomcrash.input.steps_sided";
+inline constexpr const char* arms_sided_key = "phantomcrash.input.arms_sided";
 inline constexpr const char* left_dead_zone_key = "phantomcrash.input.left_dead_zone";
 inline constexpr const char* right_dead_zone_key = "phantomcrash.input.right_dead_zone";
 inline constexpr const char* outer_dead_zone_key = "phantomcrash.input.outer_dead_zone";
+// PC: player 1's "AIR TURN": 1 (the default) the mouse alone turns the machine in the air while it
+// aims, so A and D (the keys' left stick across) don't fight it; 0 the keys turn there too
+inline constexpr const char* air_turn_mouse_key = "phantomcrash.input.air_turn_mouse";
+// PC: a player's "DOUBLE TAP STEP": 1 (the default, retail) the double flick of the left stick
+// steps under Standard (A or D tapped twice on the keys); 0 it doesn't. It reaches the fight as
+// setup (World::player_controls, seat_pc_controls), not through the pad
+inline constexpr const char* double_tap_step_key = "phantomcrash.input.double_tap_step";
 inline constexpr int dead_zone_default = 50;
 inline constexpr int dead_zone_min = 5, dead_zone_max = 50;
 inline constexpr int outer_dead_zone_max = 30;

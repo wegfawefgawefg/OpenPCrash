@@ -3,6 +3,7 @@
 #include "screens/shops/music_player.hpp"
 
 #include "audio/audio.hpp"
+#include "screens/shops/fight_music.hpp"
 #include "screens/ui/ui.hpp"
 #include "story/story.hpp"
 #include "world/game_state.hpp"
@@ -170,8 +171,11 @@ void battle_playlist_reset(MusicPlayer& music, const Story& story, const Music& 
 
 // decomp: music_playlist_advance 0x9E3A4
 int music_playlist_advance(MusicPlayer& music, const Music& player_music) {
-    BattlePlaylist& list = music.battle;
     const float roll = rand_float_crt(music, 1.0f); // retail: rank = (int)rand_float_crt(12) % 12
+    return music_playlist_slot(music.battle, player_music, roll);
+}
+
+int music_playlist_slot(const BattlePlaylist& list, const Music& player_music, float roll) {
     if (list.wave[0] == -1) {
         return -1;
     }
@@ -202,8 +206,41 @@ int music_playlist_advance(MusicPlayer& music, const Music& player_music) {
     return -1;
 }
 
+// decomp: battle_playlist_play 0x9E513
+void battle_playlist_play(MusicPlayer& music, Ui& ui, int slot) {
+    BattlePlaylist& list = music.battle;
+    ui_music(ui, list.wave[slot], false);
+    list.played[slot] = true;
+    list.current = slot;
+    // port-only: kept for the music panel's BACK (fight_music.cpp)
+    if (const MusicRecord* record = music_record_by_stream(music, list.wave[slot])) {
+        fight_music_played(music, record->id);
+    }
+}
+
+bool tournament_has_theme(int tournament) {
+    for (const Theme& theme : tournament_themes) {
+        if (theme.tournament == tournament) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// decomp: tournament_theme_play 0x9E631
+bool tournament_theme_play(Ui& ui, int tournament) {
+    for (const Theme& theme : tournament_themes) {
+        if (theme.tournament == tournament) {
+            ui_music(ui, theme.track, false);
+            return true;
+        }
+    }
+    return false;
+}
+
 // decomp: battle_music_update 0x9E1CC
-void battle_music_update(MusicPlayer& music, Ui& ui, const Music& player_music, int tournament) {
+void battle_music_update(MusicPlayer& music, Ui& ui, const Story& story, const Music& player_music,
+                         int tournament, int mode) {
     BattlePlaylist& list = music.battle;
     const bool playing = ui.audio && music_active(*ui.audio);
     if (list.countdown < 0) {
@@ -216,19 +253,19 @@ void battle_music_update(MusicPlayer& music, Ui& ui, const Music& player_music, 
     if (list.countdown != 0 || playing) {
         return;
     }
-    for (const Theme& theme : tournament_themes) {
-        if (theme.tournament == tournament) {
-            ui_music(ui, theme.track, false);
-            return;
-        }
+    if (tournament_theme_play(ui, tournament)) {
+        return;
+    }
+    // port-only: the PC's ALL SONGS SHUFFLE and ONE SONG REPEAT pick from the owned songs, after
+    // the same gap (fight_music.cpp)
+    if (mode == fight_music_shuffle || mode == fight_music_repeat) {
+        fight_music_play_next(music, ui, story, player_music, mode);
+        return;
     }
     for (int pass = 0; pass < 2; ++pass) {
         const int slot = music_playlist_advance(music, player_music);
         if (slot != -1) {
-            // battle_playlist_play
-            ui_music(ui, list.wave[slot], false);
-            list.played[slot] = true;
-            list.current = slot;
+            battle_playlist_play(music, ui, slot);
             return;
         }
         for (bool& played : list.played) {

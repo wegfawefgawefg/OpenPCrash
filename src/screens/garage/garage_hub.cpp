@@ -1,6 +1,7 @@
 // The garage hub (garage_screen_* state 0xD, decomp src/o1/u_01c789.c 0x1C789..0x1CC78): a wheel
 // of eight items, the boarded garage's banner, day and money.
 #include "audio/sound_cues.hpp"
+#include "input/menu_input.hpp"
 #include "screens/flow/front_end.hpp"
 #include "world/world.hpp"
 
@@ -96,11 +97,8 @@ void garage_hub_step(FrontEnd& fe, Ui& ui) {
         break;
     case 2: { // garage_screen_step3
         if (!h.turning) {
-            menu_cursor(ui, h.cursor, 0, 8, 0x17, -1, -1);
-            // the mouse wheel turns the wheel as left and right do
-            if (ui.pointer.wheel != 0) {
-                h.cursor = (h.cursor + (ui.pointer.wheel > 0 ? 7 : 1)) % 8;
-                menu_input_mark(ui);
+            if (menu_cursor(ui, h.cursor, 0, 8, 0x17, -1, -1) == 0) {
+                menu_wheel_pointer(ui, h.cursor, 8, ids(ui, "garage_menu_items")[0]);
             }
         }
         if (h.cursor != h.shown) {
@@ -120,9 +118,8 @@ void garage_hub_step(FrontEnd& fe, Ui& ui) {
             h.shown = h.cursor;
         }
         draw(fe, ui, h);
-        const PointerRect lit =
-            menu_wheel_rect(ui, ids(ui, "garage_menu_lit")[static_cast<std::size_t>(h.cursor)]);
-        if (menu_accept(ui, &lit)) {
+        const int item = ids(ui, "garage_menu_items")[0];
+        if (menu_accept_pressed(ui.pad) || (ui.pointer.left && menu_wheel_pick(ui, item) == 0)) {
             ui_sound(ui, bank_sys, h.cursor == 7 ? se_shop_leave : se_menu_accept);
             fade_out_start(ui, static_cast<float>(ui.frame_cadence) * 0.5f);
             fe.screen.step = 3;

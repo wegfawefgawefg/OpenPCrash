@@ -194,6 +194,34 @@ bool replay_cockpit_shown(const SceneCameraState& state) {
     return state.main.source == source_replay;
 }
 
+float fight_fov_vertical(int fov) {
+    if (fov == fov_original) {
+        return 52.0f; // retail's own, exactly
+    }
+    constexpr float degree = 3.14159265f / 180.0f;
+    const float half = static_cast<float>(fov) * 0.5f * degree;
+    return 2.0f * std::atan(std::tan(half) * 9.0f / 16.0f) / degree;
+}
+
+void fight_fov_apply(CameraPose& pose, int source, int fov) {
+    float share = 0.0f;
+    if (source == source_fighter || source >= source_replay) {
+        share = 1.0f;
+    } else if (source > source_scene && source <= source_scene + 4 && pose.scene.row) {
+        share = 1.0f - pose.scene.mix; // an entrance handing over
+    }
+    pose.widen = (fight_fov_vertical(fov) - 52.0f) * share;
+    pose.fov += pose.widen;
+}
+
+float fight_fov_unit(float widen) {
+    if (widen == 0.0f) {
+        return 1.0f;
+    }
+    constexpr float degree = 3.14159265f / 180.0f;
+    return std::tan(26.0f * degree) / std::tan((26.0f + widen * 0.5f) * degree);
+}
+
 CameraPose scene_curve_pose(const SceneCurveAt& at) {
     CameraPose pose;
     if (!at.row) {

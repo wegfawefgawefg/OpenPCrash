@@ -249,8 +249,15 @@ void play_music(Audio& audio, int track, bool loop, float scale, float fade_seco
     }
     const float kept_scale = audio.music_scale;
     audio.music_scale = std::clamp(scale, 0.0f, 1.0f);
-    if (start_stream(audio, index, audio.music_files[static_cast<std::size_t>(track)], loop,
-                     music_gain(audio), fade_seconds, track)) {
+    const std::string& file = audio.music_files[static_cast<std::size_t>(track)];
+    if (audio.trace) {
+        // PHANTOMCRASH_SOUND_TRACE: every music start, with the time for the gaps between them
+        SDL_Log("music step %lld at %.2f s start %d %s%s", audio.trace_step,
+                static_cast<double>(SDL_GetTicks()) / 1000.0, track,
+                file.empty() ? "(missing)" : file.substr(file.find_last_of('/') + 1).c_str(),
+                loop ? " looped" : "");
+    }
+    if (start_stream(audio, index, file, loop, music_gain(audio), fade_seconds, track)) {
         audio.music_now = index;
     } else {
         audio.music_scale = kept_scale; // the scale is the started track's
@@ -259,6 +266,10 @@ void play_music(Audio& audio, int track, bool loop, float scale, float fade_seco
 
 void stop_music(Audio& audio, float fade_seconds) {
     if (audio.music_now >= 0) {
+        if (audio.trace) {
+            SDL_Log("music step %lld at %.2f s stop", audio.trace_step,
+                    static_cast<double>(SDL_GetTicks()) / 1000.0);
+        }
         fade_stream(audio, audio.music_now, fade_seconds);
         audio.music_now = -1;
     }

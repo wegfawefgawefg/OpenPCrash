@@ -163,7 +163,9 @@ void control_route(ControlRecord& record, const PadRecord& pad, const MouseAim& 
             axis[axis_leg_turn] = right.x;
             axis[axis_twist] = left.x;
         }
-        record.control_buttons |= step_flick(flick, left.x);
+        if (!(fighter.control_type & control_type_no_flick)) {
+            record.control_buttons |= step_flick(flick, left.x);
+        }
     }
     if (fighter.control_type & control_type_view_normal) {
         axis[axis_pitch] = -axis[axis_pitch];

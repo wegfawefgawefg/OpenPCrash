@@ -82,18 +82,20 @@ void mark_sync(HudView& hud, HudMarkTrail& t, const LockMark& m, float frames, c
 
 // four corners of a box round the reticle centre: retail moves each in by (half the sprite + pad)
 // of its 640 x 480 pixels / 640 (or / 480) screen units, mirrors the right ones and turns the
-// bottom ones over
+// bottom ones over. The centre and the box are the world's (FIELD OF VIEW's frame.world), the
+// sprite's own size the screen's
 void box_draw(Ui& ui, const HudFrame& frame, int sprite, const float centre[2], float bx,
               float by, float pad) {
     const float hx = (static_cast<float>(sprite_width(ui, sprite)) * 0.5f + pad) / 640.0f;
     const float hy = (static_cast<float>(sprite_height(ui, sprite)) * 0.5f + pad) / 480.0f;
     const float one = frame.sprite_scale;
+    const float w = frame.world;
     const struct {
         float sx, sy, flip, turn;
     } corners[4] = {{-1, 1, 1, 0}, {1, 1, -1, 0}, {1, -1, 1, pi}, {-1, -1, -1, pi}};
     for (const auto& c : corners) {
-        const float ux = centre[0] + c.sx * (bx - hx);
-        const float uy = centre[1] + c.sy * (by - hy);
+        const float ux = centre[0] * w + c.sx * (bx * w - hx);
+        const float uy = centre[1] * w + c.sy * (by * w - hy);
         hud_sprite(ui, sprite, hud_px(frame, ux), hud_py(frame, uy), c.flip * one, one, c.turn,
                    0x101, box_colour, reticle_flags);
     }
@@ -103,9 +105,14 @@ void marks_draw(Ui& ui, const HudFrame& frame, const HudMarkTrail& t, int sprite
     if (t.target == -1) {
         return;
     }
+    // the trail closes on the target's world point plus the corner's screen offset: the point
+    // part in the drawn view (FIELD OF VIEW), the corner as it is; exact at frame.world 1
+    const float w1 = frame.world - 1.0f;
     for (int i = 0; i < 4; ++i) {
-        const float ux = lerpf(t.prev[i][0], t.trail[i][0], frame.alpha);
-        const float uy = lerpf(t.prev[i][1], t.trail[i][1], frame.alpha);
+        float ux = lerpf(t.prev[i][0], t.trail[i][0], frame.alpha);
+        float uy = lerpf(t.prev[i][1], t.trail[i][1], frame.alpha);
+        ux += w1 * (ux - mark_corners[i][0]);
+        uy += w1 * (uy - mark_corners[i][1]);
         hud_sprite(ui, sprite, hud_px(frame, ux), hud_py(frame, uy), frame.sprite_scale,
                    frame.sprite_scale, static_cast<float>(i) * pi * 0.5f, 0x101, mark_colour,
                    mark_flags);
@@ -145,10 +152,11 @@ void hud_draw_reticle(HudView& hud, Ui& ui, const World& world, const HudFrame& 
              fx_float(lock.box_a[1]), 2.0f);
     const float tx = lerpf(s.track[0][0], s.track[1][0], frame.alpha);
     const float ty = lerpf(s.track[0][1], s.track[1][1], frame.alpha);
-    hud_sprite(ui, sprite_track_dot, hud_px(frame, tx), hud_py(frame, ty), frame.sprite_scale,
+    hud_sprite(ui, sprite_track_dot, hud_wx(frame, tx), hud_wy(frame, ty), frame.sprite_scale,
                frame.sprite_scale, 0, 0x101, box_colour, reticle_flags);
     // PC: where the mouse asked to aim, a dimmer copy of the dot, until the aim gets there. The
-    // angle left goes to screen units through the world's projection (52 degrees over 576 x 448)
+    // angle left goes to screen units through the world's projection (52 degrees over 576 x 448),
+    // then to the drawn view's with the rest
     if (f.controller >= 0 && f.controller < 4) {
         const auto& target = hud.mouse_target[static_cast<std::size_t>(f.controller)];
         if (target[0] != 0.0f || target[1] != 0.0f) {
@@ -156,7 +164,7 @@ void hud_draw_reticle(HudView& hud, Ui& ui, const World& world, const HudFrame& 
             const float ux = centre[0] + std::tan(std::clamp(target[0], -1.4f, 1.4f)) /
                                              (half * 576.0f / 448.0f);
             const float uy = centre[1] + std::tan(std::clamp(target[1], -1.4f, 1.4f)) / half;
-            hud_sprite(ui, sprite_track_dot, hud_px(frame, ux), hud_py(frame, uy),
+            hud_sprite(ui, sprite_track_dot, hud_wx(frame, ux), hud_wy(frame, uy),
                        frame.sprite_scale, frame.sprite_scale, 0, 0x101, mouse_target_colour,
                        reticle_flags);
         }

@@ -6,6 +6,7 @@
 #include "assets/fighter_tables.hpp"
 #include "assets/manifest.hpp"
 #include "assets/stage_tables.hpp"
+#include "effects/billboards.hpp"
 #include "mech/mech_parts.hpp"
 #include "render/scene_draw.hpp"
 #include "render/stage_lighting.hpp"
@@ -17,6 +18,7 @@
 #include <array>
 #include <string>
 
+struct Dance;
 struct Effects;
 struct HudCockpit;
 
@@ -39,10 +41,19 @@ struct Scenery {
     int day = 0;            // the game day the lighting cycles by
     bool safe_rect = false; // the 3D in the original's 576x448 safe rectangle
     Effects* effects = nullptr; // the battle's effects (src/effects), drawn when set
+    // --dance: slot 0 dancing alone (mech/dance_pose.hpp), no stage, effects or shadow, over a
+    // black or white clear
+    const Dance* dance = nullptr;
     // draws added after the frame's own (the front end's 3D over a demo battle: render pass 13)
     const FrameDraws* late = nullptr;
     // the viewer's cockpit instruments (pass 11, hud_draw_meters), drawn in a single view
     const HudCockpit* cockpit = nullptr;
+    // a frame's lists, cleared and refilled each frame and view (nothing carries over), kept here
+    // so their vectors keep their room instead of growing again every frame
+    FrameDraws draws;
+    std::vector<PassItem> items;
+    std::array<std::vector<const PassItem*>, 17> queues;
+    std::vector<Billboard> billboards;
 };
 
 // the tables from the core pack, the stage and the fighter from theirs

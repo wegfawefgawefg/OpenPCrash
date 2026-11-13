@@ -58,6 +58,23 @@ CameraPose scene_curve_pose(const SceneCurveAt& at);
 // the main view shows a replay's view 0 (camera_replay_pass's cockpit)
 bool replay_cockpit_shown(const SceneCameraState& state);
 
+// PC CONFIG's FIELD OF VIEW (RenderOptions::fov): degrees across a 16:9 view, as PC games give it,
+// 82..130 by 2. 82 stands for retail's 52 degrees vertical (2 atan(tan 26 x 16/9) is 81.9); the
+// rest turn into the vertical angle the same way, and wider or narrower windows keep that
+// vertical (Hor+), as at 52
+inline constexpr int fov_original = 82, fov_widest = 130;
+// the vertical degrees a FIELD OF VIEW stands for: 52 at 82, 88.5 at 120, 100.7 at 130
+float fight_fov_vertical(int fov);
+// FIELD OF VIEW on a drawn camera shown from `source` (SceneCameraState::Shown's, 0 the fighter's
+// own): the fighter's own views (the chase views, the cockpit, each split-screen view) and a
+// replay's widen by the setting's vertical over 52, an entrance as it hands over to the fighter's
+// camera by the fighter's share of its blend, any other scene camera not at all. Presentation
+// only: the world's aim and lock-on keep retail's 52 (weapons/hud_aim.cpp)
+void fight_fov_apply(CameraPose& pose, int source, int fov);
+// the world's screen units (its 52 degrees) in a view widened by `widen` degrees: the world's
+// units times this are the drawn view's, about its centre (tan 26 / tan(26 + widen / 2)), 1 for 0
+float fight_fov_unit(float widen);
+
 // after take_step_poses for the step that made `after`
 void scene_cameras_step(SceneCameraState& state, const SceneCameraTables& tables, View& view,
                         const World& after);

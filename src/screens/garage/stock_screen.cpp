@@ -207,10 +207,24 @@ void stock_step(FrontEnd& fe, Ui& ui) {
         if (menu_cursor(ui, s.tab_col, 0, 5, 0x17, 0, 4) && s.tab_col == 4) {
             s.tab_row = 1;
         }
+        // PC: the pointer lights the tab it enters (the last column has only its bottom cell)
+        PointerRect cells[10];
+        for (int col = 0; col < 5; ++col) {
+            cells[col * 2] =
+                col == 4 ? PointerRect{}
+                         : sprite_rect(ui, top_ids[col], static_cast<float>(s.tabs.pos[col]), 212);
+            cells[col * 2 + 1] =
+                sprite_rect(ui, bottom_ids[col], static_cast<float>(s.bottom_tabs.pos[col]), 257);
+        }
+        int cell = s.tab_col * 2 + s.tab_row;
+        if (menu_cursor(ui, cell, 0, 10, cursor_no_dpad, bank_sys, se_menu_cursor_horizontal,
+                        cells)) {
+            s.tab_col = cell / 2;
+            s.tab_row = cell % 2;
+        }
         s.tab = tab_map[s.tab_col * 2 + s.tab_row];
         draw(fe, ui, s, true, false);
-        const PointerRect rect = {60, 190, 340, 290};
-        if (menu_accept(ui, &rect)) {
+        if (menu_accept(ui, &cells[s.tab_col * 2 + s.tab_row])) {
             ui_sound(ui, bank_sys, se_menu_accept);
             if (s.tab == 8) {
                 s.frames = static_cast<int>(static_cast<float>(ui.frame_cadence) * 0.5f);
@@ -238,8 +252,19 @@ void stock_step(FrontEnd& fe, Ui& ui) {
     case 3: { // the list
         GaragePage& page = s.pages[s.tab];
         int moved = 0;
-        menu_list_move(ui.pad, s.cursor, s.scroll, 0, static_cast<int>(page.entries.size()), 6, 0x12,
-                       moved);
+        const int count = static_cast<int>(page.entries.size());
+        menu_list_move(ui.pad, s.cursor, s.scroll, 0, count, 6, 0x12, moved);
+        // PC: entering a row lights it, the arrows scroll
+        PointerRect rows[6];
+        for (int i = 0; i < 6; ++i) {
+            rows[i] = sprite_rect(ui, 0xa28, 43, 144.0f + 38.0f * static_cast<float>(i));
+        }
+        const PointerRect up = sprite_rect(ui, 0x9f5, 184, 136);
+        const PointerRect down = sprite_rect(ui, 0x9f4, 184, 371);
+        if (moved == 0) {
+            moved = menu_list_pointer(ui, s.cursor, s.scroll, count, 6, 0x12, rows,
+                                      count > 6 ? &up : nullptr, count > 6 ? &down : nullptr);
+        }
         if (moved) {
             ui_sound(ui, bank_sys, se_menu_cursor_vertical);
             menu_input_mark(ui);

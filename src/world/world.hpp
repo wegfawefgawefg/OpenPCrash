@@ -70,6 +70,9 @@ struct World {
     // each player's session copy of the button config (GameState +0x10FD4, 40 bytes a player; not
     // saved): player_config_commit copies the saved one to player 0
     ButtonConfig player_buttons[4];
+    // PC (port-only): each seat's control settings the fight reads at spawn (not saved), filled
+    // from the seats' PC CONFIG before a battle starts (pc_controls_commit)
+    PcControls player_controls[4];
     WorldRandom random; // the one gameplay generator (world/world_random.hpp)
     VsBattle vs;        // split-screen VS: who is in play, the end menu, the wins (battle/vs_battle)
     LobbyRules rules;   // the lobby's, set at the battle's start (retail's: all off)

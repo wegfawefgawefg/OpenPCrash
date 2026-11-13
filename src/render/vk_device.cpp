@@ -1,6 +1,8 @@
 #include "render/vk_internal.hpp"
 #include "render/vk_sprites.hpp"
 
+#include "perf_log.hpp"
+
 #include <SDL3/SDL_vulkan.h>
 #include <cstdio>
 #include <cstring>
@@ -160,6 +162,7 @@ VkCommandBuffer vk_upload_command(RendererState& vk) {
 }
 
 void vk_upload_keep(RendererState& vk, GpuBuffer& staging) {
+    perf_upload(staging.size);
     vk.upload_bytes += staging.size;
     vk.upload_staging.push_back(staging);
     staging = {};
@@ -169,10 +172,46 @@ void vk_upload_keep(RendererState& vk, GpuBuffer& staging) {
     }
 }
 
+bool vk_upload_bytes(RendererState& vk, const void* data, VkDeviceSize size, VkBuffer& buffer,
+                     VkDeviceSize& offset) {
+    constexpr VkDeviceSize arena_size = 32u << 20;
+    if (size > arena_size) {
+        GpuBuffer own;
+        if (!vk_create_mapped_buffer(vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, own)) {
+            return false;
+        }
+        std::memcpy(own.mapped, data, size);
+        buffer = own.buffer;
+        offset = 0;
+        vk_upload_keep(vk, own);
+        return true;
+    }
+    if (!vk.upload_arena.buffer &&
+        !vk_create_mapped_buffer(vk, arena_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                 vk.upload_arena)) {
+        return false;
+    }
+    // 16-byte steps: a block texture's copy starts on a whole block
+    VkDeviceSize at = (vk.upload_arena_used + 15) / 16 * 16;
+    if (at + size > arena_size) {
+        if (!vk_flush_uploads(vk)) {
+            return false;
+        }
+        at = 0;
+    }
+    std::memcpy(static_cast<std::uint8_t*>(vk.upload_arena.mapped) + at, data, size);
+    vk.upload_arena_used = at + size;
+    perf_upload(size);
+    buffer = vk.upload_arena.buffer;
+    offset = at;
+    return true;
+}
+
 bool vk_flush_uploads(RendererState& vk) {
     if (!vk.uploads) {
         return true;
     }
+    const std::uint64_t start = perf_now();
     const bool ok = vk_end_once(vk, vk.uploads);
     vk.uploads = VK_NULL_HANDLE;
     for (GpuBuffer& staging : vk.upload_staging) {
@@ -180,6 +219,8 @@ bool vk_flush_uploads(RendererState& vk) {
     }
     vk.upload_staging.clear();
     vk.upload_bytes = 0;
+    vk.upload_arena_used = 0;
+    perf_add(PerfPart::uploads, perf_now() - start);
     return ok;
 }
 
@@ -240,7 +281,9 @@ bool start_vulkan(Renderer& renderer, SDL_Window* window, std::string& error) {
     }
 
     // the device: a discrete GPU over an integrated one over a CPU one, with a queue that draws and
-    // presents
+    // presents; PHANTOMCRASH_VK_DEVICE=TEXT takes the first whose name has TEXT in it over all
+    // (RADV or llvmpipe, for measuring one beside the other)
+    const char* wanted = SDL_getenv("PHANTOMCRASH_VK_DEVICE");
     std::uint32_t count = 0;
     vkEnumeratePhysicalDevices(vk.instance, &count, nullptr);
     std::vector<VkPhysicalDevice> devices(count);
@@ -259,7 +302,9 @@ bool start_vulkan(Renderer& renderer, SDL_Window* window, std::string& error) {
             if (!present || !(queues[q].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                 continue;
             }
-            const int rank = properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU     ? 3
+            const bool named = wanted && *wanted && std::strstr(properties.deviceName, wanted);
+            const int rank = named                                                             ? 4
+                             : properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU   ? 3
                              : properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ? 2
                                                                                                : 1;
             if (rank > best) {
@@ -275,8 +320,29 @@ bool start_vulkan(Renderer& renderer, SDL_Window* window, std::string& error) {
     }
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(vk.physical, &properties);
-    std::printf("Vulkan device: %s\n", properties.deviceName);
+    renderer.device = properties.deviceName;
+    if (properties.apiVersion >= VK_API_VERSION_1_2) {
+        VkPhysicalDeviceDriverProperties driver{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+        VkPhysicalDeviceProperties2 more{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        more.pNext = &driver;
+        vkGetPhysicalDeviceProperties2(vk.physical, &more);
+        renderer.device += std::string(", ") + driver.driverName + " " + driver.driverInfo;
+    } else {
+        renderer.device += ", driver " + std::to_string(properties.driverVersion);
+    }
+    renderer.device += ", Vulkan " + std::to_string(VK_API_VERSION_MAJOR(properties.apiVersion)) +
+                       "." + std::to_string(VK_API_VERSION_MINOR(properties.apiVersion)) + "." +
+                       std::to_string(VK_API_VERSION_PATCH(properties.apiVersion));
+    SDL_Log("render: Vulkan device %s", renderer.device.c_str());
     vk.uniform_alignment = properties.limits.minUniformBufferOffsetAlignment;
+    // the GPU's pass times (perf_log.hpp): timestamps where the queue has them
+    std::uint32_t family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(vk.physical, &family_count, nullptr);
+    std::vector<VkQueueFamilyProperties> families(family_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(vk.physical, &family_count, families.data());
+    const std::uint32_t valid_bits = families[vk.family].timestampValidBits;
+    vk.timestamp_period = properties.limits.timestampPeriod;
+    vk.timestamp_mask = valid_bits >= 64 ? ~0ull : (1ull << valid_bits) - 1;
     float priority = 1;
     VkDeviceQueueCreateInfo queue{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
     queue.queueFamilyIndex = vk.family;
@@ -309,7 +375,8 @@ bool start_vulkan(Renderer& renderer, SDL_Window* window, std::string& error) {
     }
     vkGetDeviceQueue(vk.device, vk.family, 0, &vk.queue);
 
-    // one frame's command buffer, its fence and the swapchain's two semaphores
+    // one frame's command buffer, its fence and the acquire's semaphore (the presents' are the
+    // swapchain's: vk_target.cpp)
     VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     pool.queueFamilyIndex = vk.family;
     pool.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -321,13 +388,18 @@ bool start_vulkan(Renderer& renderer, SDL_Window* window, std::string& error) {
         error = SDL_GetError();
         return false;
     }
+    if (valid_bits > 0) {
+        VkQueryPoolCreateInfo queries{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
+        queries.queryType = VK_QUERY_TYPE_TIMESTAMP;
+        queries.queryCount = timestamp_count;
+        vk_check(vkCreateQueryPool(vk.device, &queries, nullptr, &vk.timestamps), "query pool");
+    }
     command.commandPool = vk.pool;
     command.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     command.commandBufferCount = 1;
     if (!vk_check(vkAllocateCommandBuffers(vk.device, &command, &vk.command), "command buffer") ||
         !vk_check(vkCreateFence(vk.device, &fence, nullptr, &vk.fence), "fence") ||
         !vk_check(vkCreateSemaphore(vk.device, &semaphore, nullptr, &vk.acquired), "semaphore") ||
-        !vk_check(vkCreateSemaphore(vk.device, &semaphore, nullptr, &vk.finished), "semaphore") ||
         !vk_create_shading(vk)) {
         error = SDL_GetError();
         return false;
@@ -335,7 +407,7 @@ bool start_vulkan(Renderer& renderer, SDL_Window* window, std::string& error) {
     // a white texel for untextured stages (texture_white), before anything binds textures
     const std::vector<std::uint8_t> white(4, 255);
     if (renderer_upload_texture(renderer, 1, 1, white) != texture_white ||
-        !vk_create_composite(vk) || !vk_fit_window(vk, renderer)) {
+        !vk_create_composite(vk) || !vk_create_stream(vk) || !vk_fit_window(vk, renderer)) {
         error = SDL_GetError();
         return false;
     }
@@ -369,6 +441,7 @@ void renderer_shutdown(Renderer& renderer) {
         return;
     }
     RendererState& vk = *renderer.vk;
+    perf_finish(); // the last part window's perf line
     if (vk.device) {
         vk_flush_uploads(vk);
         vkDeviceWaitIdle(vk.device);
@@ -381,13 +454,20 @@ void renderer_shutdown(Renderer& renderer) {
         }
         vk_release_freed(vk);
         vk_sprites_destroy(vk);
+        vk_destroy_stream(vk);
+        vk_destroy_buffer(vk, vk.upload_arena);
         vk_destroy_targets(vk);
         vk_destroy_shading(vk);
         if (vk.swapchain) {
             vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
         }
         vkDestroySemaphore(vk.device, vk.acquired, nullptr);
-        vkDestroySemaphore(vk.device, vk.finished, nullptr);
+        for (VkSemaphore finished : vk.finished) {
+            vkDestroySemaphore(vk.device, finished, nullptr);
+        }
+        if (vk.timestamps) {
+            vkDestroyQueryPool(vk.device, vk.timestamps, nullptr);
+        }
         vkDestroyFence(vk.device, vk.fence, nullptr);
         vkDestroyCommandPool(vk.device, vk.pool, nullptr);
         vkDestroyDevice(vk.device, nullptr);

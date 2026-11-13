@@ -150,10 +150,45 @@ void menu_wheel_draw(Ui& ui, const int* ids, int count, int shown, int cursor, i
     }
 }
 
-PointerRect menu_wheel_rect(Ui& ui, int lit_id) {
-    return sprite_rect(ui, lit_id, 262.0f, 139.0f);
+int menu_wheel_pick(Ui& ui, int item_id) {
+    const MenuPointer& p = ui.pointer;
+    if (!p.visible || p.y > 304.0f) {
+        return menu_wheel_missed;
+    }
+    constexpr float quarter = 0.7853982f, pi = 3.14159265f;
+    // the item at rest and the pivot its quad turns about (place's rot plus half its size)
+    const PointerRect r = sprite_rect(ui, item_id, 262.0f, 139.0f);
+    const float mx = (r.left + r.right) * 0.5f, my = (r.top + r.bottom) * 0.5f;
+    const float px = mx + 159.5f, py = my + 80.5f;
+    const float dx = p.x - px, dy = p.y - py;
+    // the nearest place by angle, clockwise on screen as the cursor's +1 turns
+    float a = std::atan2(dy, dx) - std::atan2(my - py, mx - px);
+    a = a < -pi ? a + 2.0f * pi : a > pi ? a - 2.0f * pi : a;
+    const int k = static_cast<int>(std::lround(a / quarter));
+    // the pointer turned back by that place's angle lands in the item's quad
+    const float c = std::cos(-quarter * static_cast<float>(k));
+    const float s = std::sin(-quarter * static_cast<float>(k));
+    const float x = dx * c - dy * s + px, y = dx * s + dy * c + py;
+    return x >= r.left && x < r.right && y >= r.top && y < r.bottom ? k : menu_wheel_missed;
 }
 
+int menu_wheel_pointer(Ui& ui, int& cursor, int count, int item_id) {
+    int to = 0;
+    if (ui.pointer.left) {
+        const int pick = menu_wheel_pick(ui, item_id);
+        to = pick == menu_wheel_missed || pick == 0 ? 0 : pick > 0 ? 1 : -1;
+    }
+    if (to == 0 && ui.pointer.wheel != 0) {
+        to = ui.pointer.wheel > 0 ? -1 : 1;
+    }
+    if (to == 0 || count <= 1) {
+        return 0;
+    }
+    cursor = ((cursor + to) % count + count) % count;
+    ui.pointer.left = false;
+    menu_input_mark(ui);
+    return to;
+}
 
 void row_scaled(Ui& ui, SpriteSlot row, float sx, float sy) {
     if (row.sprite < 0) {

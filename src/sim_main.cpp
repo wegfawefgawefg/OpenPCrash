@@ -7,7 +7,11 @@
 //                  must reach the live world's hash (state kept outside the world, or a read of
 //                  something a copy doesn't carry, shows here);
 //   --time         the world's size and the step, copy, hash and re-simulation times
-//                  (docs/multiplayer.md "Measured").
+//                  (docs/multiplayer.md "Measured");
+//   --replay FILE  a bug report's fight (src/report/report_fight.hpp, tools/reports.py replay):
+//                  its first world rebuilt and stepped on its inputs, live (battle phase as
+//                  recorded), the fight hash checked every 60 steps and the world hash at the end,
+//                  with --hash N's lines to compare with the game's own run.
 // The rest of the command line is the game's (cli.hpp): --cooked, --stage, --build, --opponents,
 // --demo, --ai-level, --seed, --script, --day, --frames (the steps to run, 3600 if not given).
 // It reads packs the game has cooked and never cooks.
@@ -17,6 +21,7 @@
 #include "cook/data_hash.hpp"
 #include "cook/pack_library.hpp"
 #include "input/script_input.hpp"
+#include "report/report_fight.hpp"
 #include "stage/stage_data.hpp"
 #include "story/roster_tables.hpp"
 #include "story/rumble.hpp"
@@ -30,6 +35,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -61,6 +68,7 @@ struct SimFlags {
     int rollback = 0;
     bool time = false;
     bool replay = false;
+    std::string replay_file; // --replay FILE: a bug report's fight
     int parts = -1; // --parts N: the world's named parts' hashes after step N (0: before any)
 };
 
@@ -72,6 +80,9 @@ std::vector<char*> take_flags(int argc, char** argv, SimFlags& flags) {
             flags.rollback = std::atoi(argv[++i]);
         } else if (std::strcmp(argv[i], "--time") == 0) {
             flags.time = true;
+        } else if (std::strcmp(argv[i], "--replay") == 0 && i + 1 < argc &&
+                   std::strncmp(argv[i + 1], "--", 2) != 0) {
+            flags.replay_file = argv[++i];
         } else if (std::strcmp(argv[i], "--replay") == 0) {
             flags.replay = true;
         } else if (std::strcmp(argv[i], "--parts") == 0 && i + 1 < argc) {
@@ -167,6 +178,63 @@ bool campaign_start(World& world, const Options& options, PackLibrary& packs,
            battle_world_spawn(world, setup, roster, stage, nullptr, error);
 }
 
+// --replay FILE: a bug report's fight stepped again from its record, as it was played
+int report_replay(const std::string& path, const Options& options, PackLibrary& packs,
+                  const StageData& stage) {
+    std::ifstream file(path, std::ios::binary);
+    std::ostringstream bytes;
+    bytes << file.rdbuf();
+    std::string raw, error;
+    FightReplay replay;
+    if (!file || !report_fight_unpack(bytes.str(), raw, error) ||
+        !report_fight_read(raw, replay, error)) {
+        std::fprintf(stderr, "pc_sim: %s: %s\n", path.c_str(), error.empty() ? "can't read it" : error.c_str());
+        return 1;
+    }
+    auto story = std::make_unique<StoryTables>();
+    auto roster = std::make_unique<RosterTables>();
+    World& world = *replay.start;
+    if (!load_story_tables(*story, options.data_dir, error) ||
+        !load_roster_tables(*roster, options.data_dir, error) ||
+        !report_fight_attach(world, replay, packs, stage, story.get(), roster.get(), error)) {
+        std::fprintf(stderr, "pc_sim: %s\n", error.c_str());
+        return 1;
+    }
+    const std::uint64_t start = world_hash(world);
+    std::printf("replay: %zu steps from step %lld, start world %016llx %s\n", replay.inputs.size(),
+                static_cast<long long>(world.step), static_cast<unsigned long long>(start),
+                start == replay.start_hash ? "matches the record's"
+                                           : "DIFFERS from the record's (a World field the record "
+                                             "doesn't carry, or another build)");
+    std::size_t checked = 0;
+    int mismatch = -1;
+    auto at = replay.fight_hashes.begin();
+    for (std::size_t k = 0; k < replay.inputs.size(); ++k) {
+        step_world(world, replay.inputs[k]);
+        world_hash_print(world, options.hash);
+        for (; at != replay.fight_hashes.end() && at->first <= static_cast<int>(k); ++at) {
+            if (at->first == static_cast<int>(k)) {
+                ++checked;
+                if (mismatch < 0 && world_fight_hash(world) != at->second) {
+                    mismatch = static_cast<int>(k);
+                    std::printf("replay: step %zu's fight hash differs from the live one's\n", k);
+                }
+            }
+        }
+    }
+    std::printf("replay: %zu fight hashes checked, %s\n", checked,
+                mismatch < 0 ? "every one matches" : "the first differs at the step above");
+    if (replay.final_step >= 0) {
+        const std::uint64_t end = world_hash(world);
+        std::printf("replay: the end at step %lld, world %016llx %s\n",
+                    static_cast<long long>(world.step), static_cast<unsigned long long>(end),
+                    world.step == replay.final_step && end == replay.final_hash
+                        ? "matches the live world's when the report was made"
+                        : "DIFFERS from the live world's when the report was made");
+    }
+    return mismatch < 0 && start == replay.start_hash ? 0 : 3;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -195,6 +263,9 @@ int main(int argc, char** argv) {
     if (!load_stage_data(*stage, packs.core, error)) {
         std::fprintf(stderr, "pc_sim: %s\n", error.c_str());
         return 1;
+    }
+    if (!flags.replay_file.empty()) {
+        return report_replay(flags.replay_file, options, packs, *stage);
     }
     // player 1's pad: --script, or --battle-script as the game's front end fights read it
     InputScript script;

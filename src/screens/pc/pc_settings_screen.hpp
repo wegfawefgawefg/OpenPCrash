@@ -3,7 +3,8 @@
 // CONFIG item, laid out like the original's sound config and key config. The pages are a column
 // of option buttons on the left (SCREEN, PICTURE, SOUND, INPUT, BINDINGS, GAME, EXIT); the chosen
 // page's rows are the key config's bars on the right, each a label and a value stepped with left
-// and right, applied and saved as it changes.
+// and right, applied and saved as it changes. From a fight's pause the same pages open over the
+// paused fight (screens/pc/pause_settings.hpp), OPTIONS first.
 #include "screens/pc/pc_settings.hpp"
 #include "screens/pc/pc_settings_art.hpp"
 #include "screens/ui/screen_text.hpp"
@@ -12,6 +13,7 @@
 #include <string>
 
 struct FrontEnd;
+struct CheatRules;
 
 enum PcPage {
     page_screen,
@@ -21,6 +23,10 @@ enum PcPage {
     page_bindings,
     page_game,
     page_exit,
+    page_options,  // the pause's only: the original's options a fight can take
+    page_music,    // the MUSIC panel's (music_panel.hpp): the fight's song and the mode
+    page_playlist, // and its playlist editor
+    page_cheats,   // CHEATS (pc_cheats.cpp), opened from GAME's CHEATS row; GAME stays lit
     page_count
 };
 
@@ -43,7 +49,8 @@ struct CalibrationPanel {
 };
 
 struct PcSettingsScreen {
-    int page = 0;         // the column's cursor
+    bool paused = false;  // over a paused fight: OPTIONS first, EXIT back to the pause
+    int page = 0;         // the column's cursor (a PcPage)
     bool in_rows = false; // the cursor is on the rows
     int row = 0;
     int top = 0; // the first row shown (BINDINGS scrolls)
@@ -57,6 +64,13 @@ struct PcSettingsScreen {
     CalibrationPanel calibration;
     TextStrip help;
     std::string help_text; // what the help line was made from
+    // the MUSIC panel (music_panel.hpp): its own column, opened from the pause's MUSIC or from
+    // SOUND's MUSIC row (EXIT goes back there)
+    bool music = false;
+    bool music_from_sound = false;
+    int music_now = -1;     // the catalogue record playing, read once a frame
+    int music_pick = -1;    // PICK A SONG's song
+    bool previewed = false; // a song played in the menus: the screen's music again on leaving
 };
 
 // a row as drawn
@@ -69,6 +83,9 @@ struct PcRowView {
     bool arrows = true;  // a value stepped with left and right
     bool dim = false;    // can't be changed now
     std::string help;
+    bool wide = false; // the value from just past a short label (the MUSIC panel's)
+    std::string title; // a song's title in the original's 18 dot font, in the value's place
+    GlyphText glyphs;  // or a name in that font's glyphs (a playlist's)
 };
 
 // the rows of the pages but BINDINGS (pc_settings_rows.cpp)
@@ -80,7 +97,30 @@ bool pc_row_step(PcHost& host, int page, int row, int step);
 bool pc_row_accept(PcHost& host, int page, int row);
 // INPUT's STICK CALIBRATION row: its value is the pad, its accept opens the panel
 bool pc_row_is_calibrate(int page, int row);
+// GAME's REPORT A BUG row: its accept opens the report panel (screens/pc/report_panel.hpp)
+bool pc_row_is_report(int page, int row);
+// SOUND's MUSIC row: its accept opens the MUSIC panel (screens/pc/music_panel.hpp); its row
+bool pc_row_is_music(int page, int row);
+int pc_music_row();
+// GAME's CHEATS row: its accept opens the CHEATS page; its row
+bool pc_row_is_cheats(int page, int row);
+int pc_cheats_row();
+// a row a fight takes at its start (SAFE FRAME): over the pause it says it waits for the next
+bool pc_row_next_fight(int page, int row);
 std::string pc_page_help(int page);
+
+// CHEATS (pc_cheats.cpp): money, songs, paints, garages, a day, and the price rules, on the
+// world's story (story/cheat_rules.hpp); only between fights in a game (not from the title, not
+// over the pause)
+int pc_cheats_count();
+PcRowView pc_cheats_view(FrontEnd& fe, int row);
+// left or right on a rule: true when it changed
+bool pc_cheats_step(FrontEnd& fe, int row, int step);
+// accept on a cheat: true when it did something
+bool pc_cheats_accept(FrontEnd& fe, int row);
+bool pc_cheats_allowed(const FrontEnd& fe);
+// the rules in a line, for the log and bug reports ("retail" when nothing was used)
+std::string pc_cheats_text(const CheatRules& rules);
 
 // BINDINGS (pc_settings_binds.cpp, pc_settings_axes.cpp): the picked player's own binding
 // profile: PLAYER, a row per pad button, the axes, DEFAULT
@@ -107,6 +147,9 @@ bool pc_calibrate_event(FrontEnd& fe, Ui& ui, const SDL_Event& event);
 
 void pc_settings_spawn(FrontEnd& fe, Ui& ui);
 void pc_settings_step(FrontEnd& fe, Ui& ui);
+// the menu's input (the screen's step 2) and its drawing, the pause's panel's too
+void pc_settings_input(FrontEnd& fe, Ui& ui);
+void pc_settings_draw(FrontEnd& fe, Ui& ui, bool pulse);
 void pc_settings_destroy(FrontEnd& fe, Ui& ui);
 // every SDL event before the pads see it: true when PC CONFIG took it (listening for a bind)
 bool pc_settings_event(FrontEnd& fe, Ui& ui, const SDL_Event& event);

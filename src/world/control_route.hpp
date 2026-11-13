@@ -42,6 +42,15 @@ ControlBindings control_bindings_from_keys(const std::array<int, 8>& keys);
 // Normal, 0 Preferred and Reverse; the AI is 0.
 inline constexpr int control_type_standard = 1;
 inline constexpr int control_type_view_normal = 2;
+// PC (port-only): no step from the double flick under Standard (DOUBLE TAP STEP OFF). Set at
+// spawn from the seat's PcControls, never part of button_control_type (the Xbox save's check)
+inline constexpr int control_type_no_flick = 4;
+
+// PC (port-only): a seat's control settings that reach the fight as its setup, beside its button
+// config (World::player_controls, filled from the seat's PC CONFIG before a battle starts)
+struct PcControls {
+    bool double_tap_step = true; // DOUBLE TAP STEP: the double flick steps, as retail
+};
 
 // The double flick of the left stick that steps under Standard (Actor +0x2538, +0x253C),
 // cleared with the Actor at spawn

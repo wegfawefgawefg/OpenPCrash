@@ -13,6 +13,8 @@ namespace {
 // weapon_laser_controller's sound_timer: frame_cadence x 9 updates, nine seconds (60 a second
 // in the port's steps)
 constexpr int beam_restart_steps = 60 * 9;
+// a blade's contact passes run on even steps only (weapons/shot_pass.cpp)
+constexpr int blade_pass_steps = 2;
 
 struct Cue {
     int bank = -1, cue = -1;
@@ -267,11 +269,19 @@ void combat_sounds_step(CombatSounds& sounds, Audio& audio, const World& before,
             muzzle[e.slot][e.value] = e.position;
             fire(sounds, audio, world, e);
         } else if (e.kind == event_impact && e.value == 4) {
-            // impact_profile_dispatch case 4, at the shot
-            play_at(audio,
-                    human(f) ? Cue{bank_battle_player, se_melee_hit}
-                             : Cue{bank_battle, se_melee_hit_ai},
-                    e.position);
+            // impact_profile_dispatch case 4, at the shot. Retail plays it on every blade pass
+            // that touches something, and the blade passes every update while it stays in a wall
+            // or within reach of a fighter: sound_play_at has no flag 4, so the one voice
+            // restarted 30 times a second (a buzz). Only the first pass of a contact plays it
+            // here: none if the fighter's blade touched on its last pass, two steps before
+            std::int64_t& until = sounds.melee_contact_until[e.slot];
+            if (world.step > until) {
+                play_at(audio,
+                        human(f) ? Cue{bank_battle_player, se_melee_hit}
+                                 : Cue{bank_battle, se_melee_hit_ai},
+                        e.position);
+            }
+            until = world.step + blade_pass_steps;
         } else if (e.kind == event_destroyed) {
             // actor_settle_damage at durability 0: the blast at the wreck
             play_at(audio, Cue{bank_battle, se_explosion_large}, e.position);

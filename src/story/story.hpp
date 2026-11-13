@@ -9,6 +9,7 @@
 // through the functions here, and the trigger table turns state changes plus progress into
 // conversations (src/story/triggers.cpp).
 #include "fx/fx.hpp"
+#include "story/cheat_rules.hpp"
 #include "story/story_tables.hpp"
 
 #include <cstdint>
@@ -46,6 +47,8 @@ struct Story {
     int lineup[4] = {-1, -1, -1, -1};                     // rumble[0..3].tournament, -1 none today
     int completed_cycles = 0;                             // post-game loops of the 60 days
     int days_played = 0;                                  // records, up to 9999
+    // the port's: PC CONFIG's CHEATS and price rules, saved as the save's (pc-rules) form
+    CheatRules cheats;
     // not saved in retail: past +0x60C4 (map_spin_money, rumble_selected, the at-entry counts) or in
     // .data; the port's save adds map_spin_money and rumble_selected (docs/bugs.md)
     // (the talk pair); src/save keeps the world's values on a load (docs/saves.md)
@@ -57,6 +60,14 @@ struct Story {
     int talk_dst = no_state;
     EndingCarry ending_carry;
 };
+
+// INFINITE MONEY (PC CONFIG's CHEATS): the money held at its cap; the front end holds it each
+// update outside a fight, and as the rule is switched on
+inline void cheat_money_hold(Story& story) {
+    if (story.cheats.infinite_money) {
+        story.money = money_cap;
+    }
+}
 
 // a beaten opponent's progress byte, as the fight's ticket names it: role 0 an alternate of a
 // pool, 1 a pool's primary, 2 a tournament's fixed opponent (RumbleContext tickets)

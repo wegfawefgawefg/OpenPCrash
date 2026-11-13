@@ -390,3 +390,11 @@ bool pc_resolution_step(PcHost& host, int step) {
     }
     return true;
 }
+
+double pc_display_hz(const PcHost& host) {
+    const SDL_DisplayID display =
+        host.window ? SDL_GetDisplayForWindow(host.window) : SDL_GetPrimaryDisplay();
+    const SDL_DisplayMode* mode = display ? SDL_GetCurrentDisplayMode(display) : nullptr;
+    const float hz = mode ? mode_size(*mode).hz : 0.0f;
+    return hz >= 20.0f ? hz : 60.0;
+}

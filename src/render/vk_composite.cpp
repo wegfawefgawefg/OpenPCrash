@@ -226,7 +226,7 @@ void vk_write_dynamic_textures(RendererState& vk, VkCommandBuffer command,
 void vk_record_composite(RendererState& vk, VkCommandBuffer command, const FrameSetup& setup,
                          std::uint32_t& cursor, bool post) {
     // the scene as pass 11 finds it, for the next frame's big screens
-    vk_record_scene_last(vk, command);
+    vk_record_scene_last(vk, command, setup);
     // the final target, or the post pass's when the 3D goes through it first
     const VkFramebuffer framebuffer = post ? vk.post_framebuffer : vk.final_framebuffer;
     const GpuImage& target = post ? vk.post : vk.final;

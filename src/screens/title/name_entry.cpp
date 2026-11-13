@@ -1,6 +1,6 @@
 // The name entry (name_entry_* state 0x16, decomp src/od/u_02c4a0.c): a 15 x 6 grid on three
 // pages (letters and digits, symbols, end), the tabs under it, and the name box above; its input
-// and steps. The drawing is name_entry_draw.cpp.
+// and steps. The drawing is name_entry_draw.cpp, the PC keyboard's typing name_entry_keys.cpp.
 #include "audio/sound_cues.hpp"
 #include "input/menu_input.hpp"
 #include "screens/flow/front_end.hpp"
@@ -64,6 +64,7 @@ void reset(Ui& ui, FrontEnd& fe, NameEntryScreen& n) {
     n.title_alpha = n.grid_alpha = 0.0f;
     n.pop_step = 0;
     n.timer = -1;
+    n.typed.clear();
     for (int page = 0; page < 3; ++page) {
         help_init(ui, n, page);
     }
@@ -123,8 +124,38 @@ void accept_name(Ui& ui, FrontEnd& fe, NameEntryScreen& n) {
     leave(ui, fe, n, result);
 }
 
+// the keyboard's typing since the last input (name_entry_keys.cpp): a glyph as the grid's accept
+// but none past the eighth, a delete as X, Enter as the END tab's accept; true when it ended
+bool typed_input(FrontEnd& fe, Ui& ui, NameEntryScreen& n) {
+    std::int16_t* name = target(fe);
+    for (const int key : n.typed) {
+        if (key == name_typed_done) {
+            n.typed.clear();
+            ui_sound(ui, bank_sys, se_menu_accept);
+            menu_input_mark(ui);
+            accept_name(ui, fe, n);
+            return true;
+        }
+        if (key == name_typed_delete) {
+            if (n.length > 0) {
+                --n.length;
+                name[n.length] = -1;
+                ui_sound(ui, bank_sys, se_name_entry_backspace);
+            }
+        } else if (n.length < 8) {
+            name[n.length++] = static_cast<std::int16_t>(key);
+            ui_sound(ui, bank_sys, se_menu_accept);
+        }
+    }
+    n.typed.clear();
+    return false;
+}
+
 // decomp: name_entry_screen_input 0x2CCA1, name_entry_tabs_input 0x2D114
 void input(FrontEnd& fe, Ui& ui, NameEntryScreen& n) {
+    if (typed_input(fe, ui, n)) {
+        return;
+    }
     // the mouse buttons press the triggers through the bindings: a click is not a page turn
     PadRecord pad = ui.pad;
     if (ui.pointer.left || ui.pointer.right) {
@@ -148,32 +179,30 @@ void input(FrontEnd& fe, Ui& ui, NameEntryScreen& n) {
         tabs[k] = sprite_rect(ui, static_cast<int>(l.at(5)), static_cast<float>(l.at(6)) + k * 170.0f,
                               static_cast<float>(l.at(7)), true);
     }
-    if (ui.pointer.moved && ui.pointer.visible) {
-        const int tab = pointer_pick(ui.pointer, tabs, 3);
-        if (tab >= 0 && !(kind1 && tab == 1) && (!n.on_tabs || tab != n.tab)) {
+    // (entering one: the cells, then the tabs, as one list of places)
+    PointerRect places[93];
+    for (int i = 0; i < 90; ++i) {
+        places[i] = n.page != 2 ? cell_rect(i / 15, i % 15) : PointerRect{};
+    }
+    for (int k = 0; k < 3; ++k) {
+        places[90 + k] = kind1 && k == 1 ? PointerRect{} : tabs[k];
+    }
+    int place = n.on_tabs ? 90 + n.tab : n.row * 15 + n.col;
+    if (menu_cursor(ui, place, 0, 93, cursor_no_dpad, bank_sys, se_menu_cursor_horizontal,
+                    places)) {
+        if (place >= 90) {
             if (!n.on_tabs) {
                 n.saved_row = n.row;
             }
             n.on_tabs = 1;
             n.row = 6;
             n.tab_row = 6;
-            n.tab = tab;
-            ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
-            menu_input_mark(ui);
-        } else if (tab < 0 && n.page != 2) {
-            for (int row = 0; row < 6; ++row) {
-                for (int col = 0; col < 15; ++col) {
-                    if (pointer_inside(ui.pointer, cell_rect(row, col)) &&
-                        (n.on_tabs || row != n.row || col != n.col)) {
-                        n.on_tabs = 0;
-                        n.tab_row = 6;
-                        n.row = row;
-                        n.col = col;
-                        ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
-                        menu_input_mark(ui);
-                    }
-                }
-            }
+            n.tab = place - 90;
+        } else {
+            n.on_tabs = 0;
+            n.tab_row = 6;
+            n.row = place / 15;
+            n.col = place % 15;
         }
     }
 
@@ -352,6 +381,7 @@ void name_entry_step(FrontEnd& fe, Ui& ui) {
         if (n.title_x < 350.0f && n.pop_step < 10) {
             ++n.pop_step;
         }
+        name_entry_text_input(fe, true);
         input(fe, ui, n);
         n.pulse += 0.05f;
         if (n.pulse > 3.1415927f) {
@@ -407,6 +437,7 @@ void name_entry_step(FrontEnd& fe, Ui& ui) {
 }
 
 void name_entry_destroy(FrontEnd& fe, Ui& ui) {
+    name_entry_text_input(fe, false);
     ui.clear_colour = 0xff000000;
     talk_pilot_name_update(fe);
 }

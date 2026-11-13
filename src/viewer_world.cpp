@@ -25,6 +25,7 @@ struct SpawnSlot {
     int level = 0;
     int profile = 4;
     int team = -1;
+    int seat = 0; // a human's pad seat
 };
 
 } // namespace
@@ -69,6 +70,11 @@ bool viewer_world_start(World& world, const Options& options, PackLibrary& packs
         }
         spawns.push_back(spawn);
     }
+    // --pose: each slot's seat, -1 an AI (src/viewer_pose.cpp)
+    for (std::size_t slot = 0; slot < options.seats.size() && slot < spawns.size(); ++slot) {
+        spawns[slot].ai = options.seats[slot] < 0;
+        spawns[slot].seat = options.seats[slot];
+    }
 
     std::vector<int> builds;
     for (const SpawnSlot& spawn : spawns) {
@@ -101,7 +107,7 @@ bool viewer_world_start(World& world, const Options& options, PackLibrary& packs
         }
         RosterEntry& entry = rumble.roster[slot];
         entry = RosterEntry{};
-        entry.player = static_cast<std::int16_t>(spawn.ai ? -1 : 0);
+        entry.player = static_cast<std::int16_t>(spawn.ai ? -1 : spawn.seat);
         entry.ticket.opponent = spawn.opponent_id;
         entry.ticket.progress.role = spawn.role;
         entry.pilot.team = static_cast<std::int16_t>(spawn.team);

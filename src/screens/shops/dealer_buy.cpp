@@ -74,9 +74,18 @@ void dealer_wheel_update(FrontEnd& fe, Ui& ui, DealerScreen& d) {
     if (d.slide == 8) {
         d.garage_was = d.garage;
         int moved = menu_cursor(ui, d.garage, 0, 10, 0x17, 0, 4);
-        if (moved == 0 && ui.pointer.wheel != 0) {
-            d.garage = (d.garage + (ui.pointer.wheel > 0 ? 9 : 1)) % 10;
+        if (moved == 0) {
+            moved = menu_wheel(ui, d.garage, 0, 10, true, 0, 4);
+        }
+        // PC: a click on an arrow or the labels beside the cursor's turns the wheel a place
+        const PointerRect sides[2] = {{190.0f, 205.0f, 279.0f, 262.0f},
+                                      {343.0f, 205.0f, 450.0f, 262.0f}};
+        const int side = moved == 0 && ui.pointer.left ? pointer_pick(ui.pointer, sides, 2) : -1;
+        if (side >= 0) {
+            d.garage = (d.garage + (side == 0 ? 9 : 1)) % 10;
             ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
+            menu_input_mark(ui);
+            ui.pointer.left = false;
             moved = 1;
         }
         if (moved != 0) {
@@ -90,7 +99,7 @@ void dealer_wheel_update(FrontEnd& fe, Ui& ui, DealerScreen& d) {
     icon_on_plate_draw(ui, 0x150, 0x107, 0x105, 0xc3d, 0x17);
     text_strip_draw_scroll(ui, d.wheel_strip, 0xfff2e8e8, 0x101);
     // accept is read even while the wheel slides
-    const PointerRect label = {219.0f, 210.0f, 420.0f, 258.0f};
+    const PointerRect label = {279.0f, 210.0f, 343.0f, 258.0f};
     if (menu_accept(ui, &label)) {
         ui_sound(ui, bank_sys, se_menu_accept);
         Garages& g = fe.world->garages;

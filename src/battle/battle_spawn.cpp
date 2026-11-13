@@ -168,6 +168,10 @@ void battle_spawn(World& world, int slot) {
         }
         f.bindings = control_bindings_from_keys(keys);
         f.control_type = button_control_type(buttons);
+        // the PC's DOUBLE TAP STEP OFF (the seat's, World::player_controls): no double flick step
+        if (!world.player_controls[controller].double_tap_step) {
+            f.control_type |= control_type_no_flick;
+        }
         // beginner mode: the config's, but the lessons load the defaults (lesson 3 doesn't)
         f.camo.beginner =
             buttons.beginner != 0 && !(b.menu_state == app_free_play && b.free_play_lesson != 3);

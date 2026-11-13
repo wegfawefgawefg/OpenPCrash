@@ -223,12 +223,14 @@ bool extract_fighters(const Disc& disc, const ExtractOptions& options, Manifest&
     text += "(arm-motion-class" + int_list(xbe, xbe_at::arm_motion_class, 34) +
             ")  ; sv_arm_motion_class_table\n";
 
-    // PartColorAssets {int *ids; int count} by leg class: the paint (a texture set) by colour
+    // PartColorAssets {int *ids; int count} by leg class: the paint (a texture set) by colour.
+    // fighter_assets_load reads ids[colour] for any colour under 0x39 and never the count (21,
+    // or 1 for the enemy classes), so all 0x39 are written: the count alone lost paints 21..56
+    // (Citron Yellow, Stripe Chocola...)
     text += "(part-paints  ; part_color_assets: ids by colour (under 0x39), by leg class\n";
     for (int leg = 0; leg < 21; ++leg) {
         const std::uint32_t ids = xbe_u32(xbe, xbe_at::part_color_assets + leg * 8);
-        const int count = xbe_i32(xbe, xbe_at::part_color_assets + leg * 8 + 4);
-        text += "  (leg " + sx_int(leg) + int_list(xbe, ids, count) + ")\n";
+        text += "  (leg " + sx_int(leg) + int_list(xbe, ids, ids ? 0x39 : 0) + ")\n";
     }
     text += ")\n";
 

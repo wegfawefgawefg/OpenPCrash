@@ -21,11 +21,16 @@ void to_screen(SDL_Window* window, float wx, float wy, float& x, float& y) {
 
 void pointer_event(MenuPointer& pointer, const SDL_Event& event, SDL_Window* window) {
     switch (event.type) {
-    case SDL_EVENT_MOUSE_MOTION:
+    case SDL_EVENT_MOUSE_MOTION: {
+        // X11's smooth scrolling sends motion events that don't move: only a real move counts
+        const float was_x = pointer.x, was_y = pointer.y;
         to_screen(window, event.motion.x, event.motion.y, pointer.x, pointer.y);
-        pointer.visible = true;
-        pointer.pending_moved = true;
+        if (pointer.x != was_x || pointer.y != was_y || !pointer.visible) {
+            pointer.visible = true;
+            pointer.pending_moved = true;
+        }
         break;
+    }
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         to_screen(window, event.button.x, event.button.y, pointer.x, pointer.y);
         if (event.button.button == SDL_BUTTON_LEFT) {
@@ -48,6 +53,7 @@ void pointer_event(MenuPointer& pointer, const SDL_Event& event, SDL_Window* win
     case SDL_EVENT_KEY_DOWN:
     case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
         pointer.visible = false;
+        pointer.hover_item = -1;
         break;
     case SDL_EVENT_GAMEPAD_AXIS_MOTION:
         if (event.gaxis.value > 16384 || event.gaxis.value < -16384) {

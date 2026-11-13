@@ -27,18 +27,24 @@ struct PcSettings {
     // "" the window's own
     std::string display_name;
     int display_x = 0, display_y = 0;
-    int frame_cap = 0;                       // frames a second at most, 0 no cap
+    int frame_cap = 0;                       // frames a second at most, 0 MAX (frame_ceiling)
     bool show_fps = false;                   // the frame rate in the top right corner
     bool safe_area = false; // the 3D in the original's 576x448 title-safe rectangle
     RenderOptions render;   // v-sync, render scale, 4:3, filtering, soft focus, brightness
     // the sound, percent, over the original's two volumes
     int master = 100, music = 100, effects = 100;
     bool mute_unfocused = true;
+    // the fights' music (FightMusicMode, src/screens/shops/music_player.hpp): -1 the default
+    // (ALL SONGS SHUFFLE past 12 owned songs, else PLAYLIST), 0 PLAYLIST, 1 ALL SONGS SHUFFLE,
+    // 2 ONE SONG REPEAT
+    int fight_music = -1;
     // the game
     bool focus_pause = true;
     // player 1's input (gubsy's profiles)
     int mouse_sensitivity = 100; // percent of gubsy's 1.0
     bool invert_y = false;
+    bool air_turn_mouse = true;   // AIR TURN: the mouse alone turns in the air (air_turn_mouse_key)
+    bool double_tap_step = true;  // DOUBLE TAP STEP: the double flick steps (double_tap_step_key)
     int vibration_strength = 100; // percent of gubsy's vibration_strength 1.0 (pad rumble)
     int left_dead_zone = 50;      // percent, input/bindings.hpp left_dead_zone_key (retail's)
     int right_dead_zone = 50;     // right_dead_zone_key
@@ -89,6 +95,7 @@ inline constexpr const char* key_soft_focus = "phantomcrash.video.soft_focus";
 inline constexpr const char* key_brightness = "phantomcrash.video.brightness";
 inline constexpr const char* key_flashes = "phantomcrash.video.flashes";
 inline constexpr const char* key_camera_shake = "phantomcrash.video.camera_shake";
+inline constexpr const char* key_fov = "phantomcrash.video.fov";
 inline constexpr const char* key_hud_width = "phantomcrash.video.hud_width";
 inline constexpr const char* key_hud_size = "phantomcrash.video.hud_size";
 inline constexpr const char* key_antialias = "phantomcrash.video.antialias";
@@ -96,6 +103,7 @@ inline constexpr const char* key_master = "phantomcrash.audio.master";
 inline constexpr const char* key_music = "phantomcrash.audio.music";
 inline constexpr const char* key_effects = "phantomcrash.audio.effects";
 inline constexpr const char* key_mute_unfocused = "phantomcrash.audio.mute_unfocused";
+inline constexpr const char* key_fight_music = "phantomcrash.audio.fight_music";
 inline constexpr const char* key_focus_pause = "phantomcrash.game.focus_pause";
 
 // gubsy's files to settings (once gubsy has started)
@@ -127,8 +135,16 @@ bool pc_resolution_step(PcHost& host, int step);
 std::vector<float> pc_refresh_rates(const PcHost& host, int w, int h);
 // REFRESH RATE stepped among them (fullscreen only); false when nothing changed
 bool pc_refresh_step(PcHost& host, int step);
-// how long a frame may take under the cap, seconds (0 no cap)
-double pc_frame_seconds(const PcHost& host);
+// FRAME LIMIT's MAX (0): no frame comes faster, whatever v-sync does (a present that doesn't
+// block); with v-sync off a fight's interpolated frames stop here, the menus at the display's
+// refresh (src/front_end_run.cpp)
+inline constexpr int frame_ceiling = 500;
+// the refresh rate of the display the window is on (60 when SDL doesn't know it)
+double pc_display_hz(const PcHost& host);
+// the least a frame takes, seconds: FRAME LIMIT's (MAX: frame_ceiling's); still frames (a menu,
+// a movie, a paused fight) with v-sync off at least a refresh of the display, as FIFO paces them
+// with it on
+double pc_frame_seconds(const PcHost& host, bool still);
 // the window's events the settings follow: F11 and Alt+Enter flip DISPLAY MODE between WINDOW and
 // BORDERLESS (a fullscreen mode goes back to WINDOW), kept like a change on PC CONFIG; the focus
 // mutes; a window resized by hand keeps its size (not maximized); the display it moves to is kept;
@@ -136,5 +152,5 @@ double pc_frame_seconds(const PcHost& host);
 // which go no further
 bool pc_window_event(PcHost& host, const SDL_Event& event);
 // the frame's end: the frame rate counted, a dragged size written once still, the frame limit
-// waits out the rest of the frame (never in a capture)
-void pc_frame_end(PcHost& host, std::uint64_t frame_start, bool capturing);
+// waits out the rest of the frame (pc_frame_seconds; never in a capture)
+void pc_frame_end(PcHost& host, std::uint64_t frame_start, bool capturing, bool still);

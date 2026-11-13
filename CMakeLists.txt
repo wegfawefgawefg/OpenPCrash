@@ -57,9 +57,9 @@ add_executable(phantomcrash
     src/screens/title/name_entry.cpp src/screens/garage/garage_hub.cpp src/screens/garage/assemble_screen.cpp
     src/screens/garage/assemble_draw.cpp src/screens/garage/part_card.cpp src/screens/garage/spec_screen.cpp
     src/screens/shops/plus_tech.cpp src/screens/shops/plus_tech_draw.cpp src/screens/shops/plus_tech_chips.cpp
-    src/screens/garage/chip_carousel.cpp src/screens/shops/wild_machines.cpp src/screens/shops/wild_steps.cpp src/screens/shops/wild_draw.cpp
-    src/screens/garage/stock_screen.cpp
-    src/screens/shops/music_player.cpp src/screens/ui/screen_header.cpp src/screens/system/save_slots.cpp
+    src/screens/garage/chip_carousel.cpp src/screens/shops/wild_machines.cpp src/screens/shops/wild_steps.cpp
+    src/screens/shops/wild_used.cpp src/screens/shops/wild_draw.cpp src/screens/garage/stock_screen.cpp
+    src/screens/shops/music_player.cpp src/screens/shops/fight_music.cpp src/screens/ui/screen_header.cpp src/screens/system/save_slots.cpp
     src/screens/flow/menu_dispatch.cpp src/screens/system/system_screens.cpp src/screens/system/key_config_screens.cpp
     src/screens/system/record_screens.cpp src/screens/system/record_grids.cpp src/screens/flow/help_screens.cpp
     src/screens/flow/pad_watch.cpp src/screens/shops/sonic_amp.cpp src/screens/shops/sonic_amp_draw.cpp
@@ -68,9 +68,10 @@ add_executable(phantomcrash
     src/screens/title/ending_screens.cpp
     src/screens/campaign/campaign_dispatch.cpp src/screens/garage/hangar.cpp src/screens/garage/hangar_draw.cpp
     src/screens/campaign/schedule_screen.cpp src/screens/campaign/job_cards.cpp src/screens/campaign/job_wanderers.cpp src/screens/campaign/scene_text.cpp
-    src/screens/pc/pc_settings.cpp src/screens/pc/pc_display.cpp src/screens/pc/pc_settings_art.cpp src/screens/pc/pc_settings_rows.cpp
+    src/screens/pc/pc_settings.cpp src/screens/pc/pc_display.cpp src/screens/pc/pc_settings_art.cpp src/screens/pc/pc_settings_rows.cpp src/screens/pc/pc_cheats.cpp
     src/screens/pc/pc_settings_binds.cpp src/screens/pc/pc_settings_axes.cpp src/screens/pc/pc_settings_screen.cpp
-    src/screens/pc/pc_settings_calibrate.cpp
+    src/screens/pc/pc_settings_calibrate.cpp src/screens/pc/pc_settings_draw.cpp src/screens/pc/pause_settings.cpp
+    src/screens/pc/music_panel.cpp src/screens/pc/music_panel_rows.cpp
     src/view/view.cpp src/view/input.cpp src/view/combat_viewer.cpp src/view/combat_sounds.cpp
     src/view/fighter_sounds.cpp
     src/view/footsteps.cpp
@@ -78,7 +79,7 @@ add_executable(phantomcrash
     src/stage/stage_scene.cpp src/stage/stage_animate.cpp src/stage/stage_view.cpp
     src/stage/sky_craft.cpp src/stage/stage_audio.cpp
     src/mech/mech_pose.cpp src/mech/mech_ik.cpp src/mech/mech_parts.cpp src/mech/mech_load.cpp
-    src/mech/pose_compare.cpp
+    src/mech/pose_compare.cpp src/mech/dance_pose.cpp
     src/hud/hud_data.cpp src/hud/hud_core.cpp src/hud/hud_sprites.cpp src/hud/hud_readout.cpp src/hud/hud_gauges.cpp src/hud/hud_meters.cpp
     src/hud/hud_reticle.cpp src/hud/hud_radar.cpp src/hud/hud_scenes.cpp src/hud/hud_barks.cpp
     src/view/cockpit_view.cpp src/input/pad_rumble.cpp
@@ -105,9 +106,11 @@ target_sources(phantomcrash PRIVATE
 target_sources(phantomcrash PRIVATE
     src/view/scene_camera.cpp
     src/screens/system/trophy_models.cpp)
-# the stage viewer's loop (main runs it for --viewer); the AppState's own states
-target_sources(phantomcrash PRIVATE src/viewer_run.cpp src/screens/flow/state_dispatch.cpp
-    src/screens/garage/garage_stock.cpp src/screens/title/name_entry_draw.cpp src/screens/vs/vs_machines.cpp)
+# the front end's loop and the stage viewer's (main runs one); the AppState's own states
+target_sources(phantomcrash PRIVATE src/front_end_run.cpp src/front_end_steps.cpp
+    src/viewer_run.cpp src/viewer_pose.cpp src/screens/flow/state_dispatch.cpp
+    src/screens/garage/garage_stock.cpp src/screens/title/name_entry_draw.cpp
+    src/screens/title/name_entry_keys.cpp src/screens/vs/vs_machines.cpp)
 target_link_libraries(phantomcrash PRIVATE phantomcrash_world phantomcrash_fx gfxp::gfxp gsexp::gsexp gubsy::engine SDL3::SDL3 SDL3_image::SDL3_image phantomcrash_cgltf)
 if(MSVC)
     target_compile_options(phantomcrash PRIVATE /W3)
@@ -139,5 +142,7 @@ include(cmake/save.cmake)
 include(cmake/sim.cmake)
 # the first-run screen (src/setup): the player's disc to data/ when there's none
 include(cmake/setup.cmake)
+# bug reports, sent only with the player's yes (src/report, docs/reports.md)
+include(cmake/reports.cmake)
 # the version, a release's stamp and its paths (scripts/release.sh, docs/release.md)
 include(cmake/release.cmake)

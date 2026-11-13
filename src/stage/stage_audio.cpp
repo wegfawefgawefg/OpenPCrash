@@ -265,6 +265,9 @@ void stage_audio_stop(StageAudio& sound, Audio& audio) {
         break;
     }
     stop_sound(audio, bank_battle, craft_cue);
+    // the burning props' fire, looped until its burn ends: a fight or replay left while a prop
+    // burned kept it playing into the menus
+    stop_sound(audio, bank_battle, se_prop_fire_loop);
     sound = StageAudio{};
 }
 

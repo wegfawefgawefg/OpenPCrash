@@ -6,6 +6,7 @@
 #include "cook/pack_library.hpp"
 #include "hud/hud_internal.hpp"
 #include "view/cockpit_view.hpp"
+#include "view/scene_camera.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -325,12 +326,15 @@ void hud_draw_player(HudView& hud, Ui& ui, const World& world, const HudScreen& 
     const float drawn_h = view[3] * sy / fit;
     frame.unit_y = drawn_h * 0.5f;
     frame.unit_x = frame.unit_y * 576.0f / 448.0f;
+    // FIELD OF VIEW: the drawn view may be wider than the world's 52 degrees, which brings the
+    // world's points in toward the centre (both ways alike: the drawn view is Hor+)
+    frame.world = fight_fov_unit(screen.camera.widen);
     // the hit shake: the world's points shook with its look-at; CAMERA SHAKE under 100 takes them
     // back toward the plain view with the drawn camera (the world's screen x is the HUD's negated)
     float shake[2];
     cockpit_shake_hud(world, slot, screen.shake, shake);
-    frame.cx -= shake[0] * frame.unit_x;
-    frame.cy -= shake[1] * frame.unit_y;
+    frame.cx -= shake[0] * frame.world * frame.unit_x;
+    frame.cy -= shake[1] * frame.world * frame.unit_y;
     // retail's HUD viewport by view count (viewport_layouts), and the drawn 3D's scale to it, for
     // the radar's 640x480 offsets
     const float W = frame.view_count == 3 ? 284.0f : 576.0f;

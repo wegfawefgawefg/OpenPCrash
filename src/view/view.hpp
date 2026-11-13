@@ -31,6 +31,9 @@ struct CameraPose {
     float target[3] = {};
     float fov = 52.0f; // degrees (view_fov; a scene curve's in a scene camera)
     float roll = 0.0f; // radians about the view's axis (a scene curve's)
+    // PC CONFIG's FIELD OF VIEW: the degrees fov carries over the view's own (fight_fov_apply,
+    // view/scene_camera.hpp); the HUD's meshes and screen points stay in the view's own
+    float widen = 0.0f;
     SceneCurveAt scene; // a scene camera's, sampled again at draw time
 };
 

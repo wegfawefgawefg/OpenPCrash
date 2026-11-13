@@ -8,8 +8,12 @@
 #include "battle/battle_spawn.hpp"
 #include "battle_world.hpp"
 #include "cook/pack_library.hpp"
+#include "input/devices.hpp"
 #include "input/menu_input.hpp"
+#include "perf_log.hpp"
 #include "render/renderer.hpp"
+#include "report/report_fight.hpp"
+#include "report/reports.hpp"
 #include "screens/flow/front_end.hpp"
 #include "screens/pc/pc_settings.hpp"
 #include "state.hpp"
@@ -28,6 +32,8 @@
 
 bool battle_run_start(BattleRun& run, State& state, FrontEnd& fe, Ui& ui, Renderer& renderer,
                       PackLibrary& packs, Audio* audio, std::string& error) {
+    report_busy(60); // a battle's load is no hang (src/report/reports.hpp)
+    const PerfLoad timed("battle"); // the run log's load line
     if (fe.vs_mode && fe.campaign.battle_wanted == 1) {
         return battle_vs_start(run, state, fe, ui, renderer, packs, audio, error);
     }
@@ -112,6 +118,10 @@ bool battle_run_start(BattleRun& run, State& state, FrontEnd& fe, Ui& ui, Render
         run.mech_rig[slot] = rig;
         return true;
     };
+    // each seat's PC control settings, set up in the world before the spawns read them
+    if (fe.pc && fe.pc->gubsy) {
+        pc_controls_commit(world, *fe.pc->gubsy);
+    }
     if (!battle_world_spawn(world, setup, fe.campaign.roster, scenery.stage_data, look, error)) {
         return false;
     }
@@ -161,11 +171,14 @@ bool battle_run_start(BattleRun& run, State& state, FrontEnd& fe, Ui& ui, Render
                           p.present ? p.position : state.view.current.camera.position,
                           scenery.stage_view, world.stage);
     }
-    // a tournament's fight is recorded for its replay (replay_snapshot_take: battle phase 0;
-    // only state 6 reaches the result screen that offers it)
+    // a live fight is recorded for its replay (replay_snapshot_take: a tournament's, battle phase
+    // 0; only state 6 reaches the result screen that offers it) and for a bug report's
+    // (src/report/report_fight.hpp), so free play, the test drive and the ending's are too
     run.replay.recording = false;
-    if (!run.demo && fe.state == app_battle) {
+    report_fight_clear();
+    if (!run.demo) {
         replay_record_start(run.replay, world);
+        report_fight_begin(run.replay, plan);
     }
     run.active = true;
     return true;
@@ -173,6 +186,7 @@ bool battle_run_start(BattleRun& run, State& state, FrontEnd& fe, Ui& ui, Render
 
 void battle_run_step(BattleRun& run, State& state, Ui& ui, Renderer& renderer, PackLibrary& packs,
                      Audio* audio, const Inputs& inputs) {
+    const PerfScope timed(PerfPart::step);
     World& world = state.world;
     Scenery& scenery = *run.scenery;
     if (run.vs) {
@@ -188,7 +202,12 @@ void battle_run_step(BattleRun& run, State& state, Ui& ui, Renderer& renderer, P
     }
     const Inputs& in = replaying ? played : inputs;
     const World before = world;
+    if (!replaying) {
+        report_fight_step(in); // a crash inside the step has its input too
+    }
+    const std::uint64_t world_start = perf_now();
     step_world(world, in);
+    perf_world_step(perf_now() - world_start);
     world_hash_print(world, state.options.hash);
     if (replaying) {
         replay_play_step(run.replay, world);
@@ -262,6 +281,7 @@ bool battle_run_draw(BattleRun& run, State& state, Renderer& renderer, Audio* au
     Scenery& scenery = *run.scenery;
     const float ticks = static_cast<float>(world.step) + alpha;
     CameraPose camera = interpolate_camera(state.view, alpha);
+    fight_fov_apply(camera, run.cameras.main.source, renderer.options.fov); // FIELD OF VIEW
     // the hit shake on the cockpit view, seat 0's (src/view/cockpit_view.hpp), outside a scene
     // camera's own
     const int viewer = seat_slot(world, 0);
@@ -302,6 +322,7 @@ bool battle_run_draw(BattleRun& run, State& state, Renderer& renderer, Audio* au
 }
 
 void battle_run_hud(BattleRun& run, State& state, Ui& ui, const Renderer& renderer, float alpha) {
+    const PerfScope timed(PerfPart::hud);
     if (run.demo || run.replay.playing) {
         return; // no one's HUD over the result sheet, nor in a replay (battle phase 2)
     }
@@ -311,6 +332,7 @@ void battle_run_hud(BattleRun& run, State& state, Ui& ui, const Renderer& render
     }
     HudScreen screen{interpolate_camera(state.view, alpha), renderer.width, renderer.height,
                      run.scenery->safe_rect};
+    fight_fov_apply(screen.camera, run.cameras.main.source, renderer.options.fov);
     screen.shake = static_cast<float>(renderer.options.camera_shake) / 100.0f;
     hud_draw(run.hud, ui, state.world, screen, alpha);
 }

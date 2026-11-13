@@ -188,19 +188,22 @@ void menu_update(FrontEnd& fe, Ui& ui, HelpScreen& h) {
     for (int i = 0; i < 5; ++i) {
         rows[i] = sprite_rect(ui, 0x43a, 71.0f, static_cast<float>(i * 0x1e + 0x8e));
     }
+    // and entering a row lights it, the scroll arrows (when the page has more rows) step it
+    const std::vector<SpriteSlot> art = ui_slot_run(ui, "pepper_talk", "pepper_talk_sprites_2");
+    const bool arrows = h.count > h.shown && art.size() >= 6;
+    const PointerRect up =
+        arrows ? sprite_rect(ui, art[3].sprite, art[3].x, art[3].y) : PointerRect{};
+    const PointerRect down =
+        arrows ? sprite_rect(ui, art[5].sprite, art[5].x, art[5].y) : PointerRect{};
     int moved = 0;
-    const int hover = pointer_hover(ui, rows, h.shown);
-    if (hover >= 0 && hover != g.help_sel[depth]) {
-        g.help_sel[depth] = hover;
+    menu_list_move(ui.pad, g.help_sel[depth], g.help_top[depth], 0, h.count, h.shown, 0x16, moved);
+    if (moved == 0) {
+        moved = menu_list_pointer(ui, g.help_sel[depth], g.help_top[depth], h.count, h.shown, 0x16,
+                                  rows, arrows ? &up : nullptr, arrows ? &down : nullptr);
+    }
+    if (moved != 0) {
         ui_sound(ui, bank_sys, se_menu_cursor_vertical);
         menu_input_mark(ui);
-    } else {
-        menu_list_move(ui.pad, g.help_sel[depth], g.help_top[depth], 0, h.count, h.shown, 0x16,
-                       moved);
-        if (moved != 0) {
-            ui_sound(ui, bank_sys, se_menu_cursor_vertical);
-            menu_input_mark(ui);
-        }
     }
     list_refresh(fe, h);
     const int row = page_row(h, h.cursor, g.help_page);

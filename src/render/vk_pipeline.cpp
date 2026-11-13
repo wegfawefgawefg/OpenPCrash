@@ -1,6 +1,7 @@
 #include "render/vk_internal.hpp"
 
 #include "game_paths.hpp"
+#include "perf_log.hpp"
 
 #include <algorithm>
 #include <array>
@@ -270,6 +271,7 @@ VkPipeline vk_pipeline_for(RendererState& vk, const PipelineKey& key) {
     if (!info) {
         return VK_NULL_HANDLE;
     }
+    const std::uint64_t made_start = perf_now(); // the run log counts pipelines made in frames
 
     // stages, with both specialization constants offered to both (a shader ignores ids it lacks)
     const VkBool32 spec_values[2] = {info->spec0, info->spec1};
@@ -405,5 +407,6 @@ VkPipeline vk_pipeline_for(RendererState& vk, const PipelineKey& key) {
         return VK_NULL_HANDLE;
     }
     vk.pipelines[bits] = pipeline;
+    perf_pipeline_made(perf_now() - made_start);
     return pipeline;
 }

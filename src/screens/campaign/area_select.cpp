@@ -221,7 +221,8 @@ void area_select_step(FrontEnd& fe, Ui& ui) {
         break;
     case 2: { // area_select_cursor_update (the shuffle once a step: retail's second pump
               // here is dropped, docs/bugs.md)
-        if (menu_cursor(ui, a.area, 0, 4, cursor_menu_horizontal, 0, 4, a.tab_rects)) {
+        if (menu_cursor(ui, a.area, 0, 4, cursor_menu_horizontal, 0, 4, a.tab_rects) ||
+            menu_wheel(ui, a.area, 0, 4, true, 0, 4)) {
             a.previous_area = a.strip.shown;
             a.strip.shown = a.area;
             a.strip.start = static_cast<int>(ui.task_timer);
@@ -229,7 +230,7 @@ void area_select_step(FrontEnd& fe, Ui& ui) {
         }
         area_select_draw(fe, ui, a);
         music_shuffle_pump(fe.music, ui, 1.0f, fe.updates);
-        if (menu_accept(ui)) {
+        if (menu_accept(ui, &a.tab_rects[a.area])) {
             switch (area_entry_status(world.story, fe.story_tables, a.area)) {
             case EntryStatus::Shop: // Return
                 ui_sound(ui, bank_sys, se_menu_accept);
@@ -359,7 +360,7 @@ void job_menu_step(FrontEnd& fe, Ui& ui, AreaSelectScreen& a) {
     job_map_fighters_draw(fe, ui, a, -1);
     area_select_draw(fe, ui, a);
     music_shuffle_pump(fe.music, ui, 1.0f, fe.updates);
-    if (menu_accept(ui)) {
+    if (menu_accept(ui, &a.item_rects[a.item])) {
         switch (a.item) {
         case 0: { // ENTRY
             const int rule = job_rule(fe, a);
@@ -440,7 +441,9 @@ void gate_select_step(FrontEnd& fe, Ui& ui, AreaSelectScreen& a) {
     World& world = *fe.world;
     const int count = area_gate_count(a.area);
     int sel = a.gate;
-    menu_cursor(ui, sel, 0, count, cursor_menu_horizontal, 0, 4, a.gate_rects);
+    if (menu_cursor(ui, sel, 0, count, cursor_menu_horizontal, 0, 4, a.gate_rects) == 0) {
+        menu_wheel(ui, sel, 0, count, true, 0, 4);
+    }
     const int kind = tournament_kind(fe.story_tables, a.area, a.jobs[a.area]);
     if (kind != 0 && count > 1) {
         // the rolled ranker gate is never a choice
@@ -453,7 +456,7 @@ void gate_select_step(FrontEnd& fe, Ui& ui, AreaSelectScreen& a) {
     job_map_fighters_draw(fe, ui, a, -1);
     area_select_draw(fe, ui, a);
     gate_screen_draw(fe, ui, a);
-    if (menu_accept(ui)) {
+    if (menu_accept(ui, &a.gate_rects[a.gate])) {
         ui_sound(ui, bank_sys, se_menu_accept);
         BattleState& b = world.battle_state;
         const int slot = a.area;

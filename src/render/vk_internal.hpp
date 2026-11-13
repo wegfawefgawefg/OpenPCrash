@@ -2,6 +2,7 @@
 // The renderer's Vulkan objects, shared by its src/render/vk_*.cpp files only.
 #include "render/renderer.hpp"
 
+#include <array>
 #include <map>
 #include <vulkan/vulkan.h>
 
@@ -26,6 +27,14 @@ struct GpuMesh {
     GpuBuffer indices;
 };
 
+// a streamed update (vk_stream.cpp): bytes of the ring into a buffer, or a picture into an image
+struct StreamCopy {
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VkImage image = VK_NULL_HANDLE;
+    std::uint32_t width = 0, height = 0;
+    VkDeviceSize from = 0, size = 0;
+};
+
 // the render passes the pipelines are made for
 enum class PassKind : std::uint8_t { scene, screen };
 
@@ -44,6 +53,9 @@ enum : int {
     texture_post = -16,
 };
 
+// a frame's timestamps: its start and the end of each GpuPass
+inline constexpr std::uint32_t timestamp_count = 6;
+
 struct RendererState {
     // the screen adjust this frame, 640x480 screen pixels (FrameSetup::screen_shift): the 2D's
     // clips move with the 2D it shifted
@@ -59,7 +71,14 @@ struct RendererState {
     VkCommandBuffer command = VK_NULL_HANDLE;
     VkFence fence = VK_NULL_HANDLE;
     VkSemaphore acquired = VK_NULL_HANDLE;
-    VkSemaphore finished = VK_NULL_HANDLE;
+    // a present's wait, one a swapchain image: a semaphore given to a present can be signalled
+    // again only once its image comes back from the acquire
+    std::vector<VkSemaphore> finished;
+    // the GPU's pass times (perf_log.hpp): the frame's timestamps, read once its fence is done
+    VkQueryPool timestamps = VK_NULL_HANDLE;
+    float timestamp_period = 1; // ns a tick
+    std::uint64_t timestamp_mask = 0;
+    bool timestamps_written = false;
     VkDeviceSize uniform_alignment = 256;
     float max_anisotropy = 0; // 0 when the device can't
     RenderOptions options;    // what the targets and samplers were made for
@@ -68,6 +87,7 @@ struct RendererState {
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     VkFormat swap_format = VK_FORMAT_UNDEFINED;
     VkExtent2D swap_extent{};
+    VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
     std::vector<VkImage> swap_images;
     bool swap_stale = true;
 
@@ -118,10 +138,27 @@ struct RendererState {
     std::map<std::string, VkShaderModule> shaders;
     std::map<std::uint64_t, VkPipeline> pipelines;
     std::map<int, VkSampler> samplers;
-    std::map<std::vector<int>, VkDescriptorSet> texture_sets;
+    // by each stage's texture and sampler (a fixed key: a lookup a draw allocates nothing)
+    std::map<std::array<int, 8>, VkDescriptorSet> texture_sets;
+    // a frame's per-draw block offsets, pipelines and texture sets (renderer_draw_frame), kept so
+    // their room stays
+    std::vector<std::uint32_t> frame_offsets;
+    std::vector<VkPipeline> frame_pipelines;
+    std::vector<VkDescriptorSet> frame_sets;
+
+    // the frame's streamed updates (vk_stream.cpp): the ring, the half the game fills now and how
+    // much of it, and the copies the next frame records
+    GpuBuffer stream;
+    int stream_half = 0;
+    VkDeviceSize stream_used = 0;
+    std::vector<StreamCopy> stream_copies;
 
     // uploads recorded into one command buffer, submitted together before the next frame
     VkCommandBuffer uploads = VK_NULL_HANDLE;
+    // their bytes: one mapped arena taken in turn (vk_upload_bytes), and buffers of their own for
+    // the few bigger than it
+    GpuBuffer upload_arena;
+    VkDeviceSize upload_arena_used = 0;
     std::vector<GpuBuffer> upload_staging;
     VkDeviceSize upload_bytes = 0;
 
@@ -169,7 +206,21 @@ bool vk_end_once(RendererState& vk, VkCommandBuffer command);
 // and the run: one submit and wait for everything uploaded since the last
 VkCommandBuffer vk_upload_command(RendererState& vk);
 void vk_upload_keep(RendererState& vk, GpuBuffer& staging);
+// an upload's bytes into staging: the arena's next room (the pending uploads run first when it is
+// full), or a buffer of their own past its size; the copy reads `size` bytes at `offset` of
+// `buffer`. Called before vk_upload_command, which a full arena's run starts again
+bool vk_upload_bytes(RendererState& vk, const void* data, VkDeviceSize size, VkBuffer& buffer,
+                     VkDeviceSize& offset);
 bool vk_flush_uploads(RendererState& vk);
+// vk_stream.cpp: the streamed updates' ring; an update into this frame's half (false when it is
+// full: the caller takes vk_upload_command), a freed buffer's or image's pending copies dropped,
+// and the copies recorded before the frame's passes (the halves swapped for the next frame)
+bool vk_create_stream(RendererState& vk);
+void vk_destroy_stream(RendererState& vk);
+bool vk_stream_buffer(RendererState& vk, VkBuffer to, const void* data, VkDeviceSize size);
+bool vk_stream_image(RendererState& vk, const GpuImage& image, const void* rgba);
+void vk_stream_forget(RendererState& vk, VkBuffer buffer, VkImage image);
+void vk_record_stream(RendererState& vk, VkCommandBuffer command);
 // vk_resources.cpp: destroys what renderer_free_* handed back, after the last frame and the
 // pending uploads are done; the texture sets made again when a texture went
 void vk_release_freed(RendererState& vk);
@@ -191,8 +242,9 @@ void vk_pass_dependencies(VkSubpassDependency (&out)[2]);
 bool vk_create_backdrop(RendererState& vk);
 void vk_destroy_backdrop(RendererState& vk);
 void vk_record_backdrop(RendererState& vk, VkCommandBuffer command);
-// the scene's 640x480 screen over scene_last, outside any pass, before the composite reads it
-void vk_record_scene_last(RendererState& vk, VkCommandBuffer command);
+// the frame's 3D over scene_last where retail's 0x223 holds it (the title-safe rectangle, black
+// around it), outside any pass, before the composite reads it
+void vk_record_scene_last(RendererState& vk, VkCommandBuffer command, const FrameSetup& setup);
 // the final target (before the gamma ramp) over the capture texture, when capturing
 void vk_record_capture(RendererState& vk, VkCommandBuffer command);
 // vk_resources.cpp: an image as a texture handle (a freed one first) belonging to owner

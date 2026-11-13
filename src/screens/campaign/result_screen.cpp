@@ -434,11 +434,13 @@ void result_screen_step(FrontEnd& fe, Ui& ui) {
             const SpriteSlot& row = items->slots[static_cast<std::size_t>(i)];
             rects[i] = sprite_rect(ui, row.sprite, row.x, row.y);
         }
-        menu_cursor(ui, r.choice, 0, 2, cursor_menu_horizontal, 0, 4, rects);
+        if (menu_cursor(ui, r.choice, 0, 2, cursor_menu_horizontal, 0, 4, rects) == 0) {
+            menu_wheel(ui, r.choice, 0, 2, true, 0, 4);
+        }
         rows_fill(fe, r);
         sheet_draw(fe, ui, r);
         menu_draw(ui, r);
-        if (menu_accept(ui)) {
+        if (menu_accept(ui, &rects[r.choice])) {
             ui_sound(ui, bank_sys, se_menu_accept);
             r.timer = static_cast<float>(ui.frame_cadence) * 0.5f;
             fade_out_start(ui, r.timer);

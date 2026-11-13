@@ -8,6 +8,7 @@
 #include "talk/talk_task.hpp"
 
 #include <SDL3/SDL.h>
+#include <cstdint>
 #include <cstdio>
 
 namespace {
@@ -209,16 +210,19 @@ int run_window(Loaded& loaded, const Options& options) {
             update_audio(*audio);
         }
 
-        // draw frame
-        if (stepped) {
-            canvas_draw(canvas, task.slots, draw, 0xFF000000);
-            SDL_UpdateTexture(frame_texture, nullptr, canvas.rgba.data(), canvas.width * 4);
+        // nothing new to draw: sleep until the next step
+        if (!stepped) {
+            SDL_DelayPrecise(static_cast<std::uint64_t>((step_seconds - accumulator) * 1e9));
+            continue;
         }
+
+        // draw frame
+        canvas_draw(canvas, task.slots, draw, 0xFF000000);
+        SDL_UpdateTexture(frame_texture, nullptr, canvas.rgba.data(), canvas.width * 4);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         SDL_RenderTexture(renderer, frame_texture, nullptr, nullptr);
         SDL_RenderPresent(renderer);
-        SDL_Delay(1);
     }
 
     // shutdown

@@ -11,6 +11,8 @@
 #include "screens/campaign/campaign.hpp"
 #include "screens/flow/extra_screens.hpp"
 #include "screens/flow/front_end.hpp"
+#include "screens/pc/music_panel.hpp"
+#include "screens/pc/pause_settings.hpp"
 #include "view/view.hpp"
 #include "world/world.hpp"
 
@@ -25,6 +27,7 @@ constexpr int sprite_ready = 0xe80;
 constexpr int sprite_go = 0xe7f;
 constexpr int sprite_pause = 0xe82;
 constexpr int letterbox_ticks = 30;
+constexpr int free_play_track = 5; // 12SENTOU.WAV, unlooped (free_play_screen_step2)
 
 } // namespace
 
@@ -82,8 +85,9 @@ void ready_go_draw(FrontEnd& fe, Ui& ui) {
     }
 }
 
-// pause_menu_update's mask: every entered seat's pad at once in VS
-PadRecord pads_or(const FrontEnd& fe, const Ui& ui) {
+} // namespace
+
+PadRecord pause_pads(const FrontEnd& fe, const Ui& ui) {
     PadRecord out = ui.pad;
     if (!fe.vs_mode) {
         return out;
@@ -102,6 +106,8 @@ PadRecord pads_or(const FrontEnd& fe, const Ui& ui) {
     }
     return out;
 }
+
+namespace {
 
 // pause_leave: sound 0xD, the streams and effects resumed
 void pause_release(FrontEnd& fe, Ui& ui) {
@@ -132,9 +138,9 @@ unsigned pads_missing_now(FrontEnd& fe) {
 // the frozen frame at half brightness (the port draws the stopped
 // battle under a half black quad over the whole window rather than a captured texture), then
 // PAUSE, or free play's menu (cursor >= 0): the plate 0xEB1, continue 0xE8F and quit 0xE90, the
-// chosen one blinking
+// chosen one blinking; the dim alone under the pause's settings panel (port-only)
 // decomp: pause_screen_draw 0xB155A
-void pause_draw(Ui& ui, int cursor) {
+void pause_draw(Ui& ui, int cursor, bool dim_only) {
     Sprite dim = sprite_of(ui, fade_sprite);
     dim.pos[0] = -32.0f;
     dim.pos[1] = -32.0f;
@@ -144,6 +150,9 @@ void pause_draw(Ui& ui, int cursor) {
     dim.color = 0x80000000;
     dim.flags |= quad_full_window;
     sprite_submit(ui, dim);
+    if (dim_only) {
+        return;
+    }
     if (cursor >= 0) {
         Sprite plate = sprite_of(ui, 0xeb1);
         plate.pos[0] = 261.0f;
@@ -195,17 +204,25 @@ void battle_screen_step(FrontEnd& fe, Ui& ui) {
     }
     const BattleState& b = fe.world->battle_state;
     if (c.battle_running) {
-        if (!fe.vs_mode) {
-            letterbox_draw(ui, b); // battle_update's, not in VS
+        // battle_update's, not in VS; nor under the pause's settings panel, which it would cut
+        if (!fe.vs_mode && !fe.pause_settings) {
+            letterbox_draw(ui, b);
         }
         ready_go_draw(fe, ui);
+        if (c.paused && !report_panel_hides_pause(fe)) {
+            // the menu's items, then the PC's (pause_settings.hpp), or the dim alone under the
+            // settings panel
+            const bool menu = fe.state == app_free_play || fe.vs_mode;
+            pause_draw(ui, menu ? c.pause_cursor : -1, fe.pause_settings);
+            pause_items(fe, ui, menu);
+        }
         if (c.paused) {
-            pause_draw(ui, fe.state == app_free_play || fe.vs_mode ? c.pause_cursor : -1);
             if (fe.vs_mode && s.quit_open) {
                 msg_box_update_choice(ui, s.quit_box, s.quit_cursor);
             }
-            // a missing pad's box over the pause (pad_missing_*, kind 2)
-            if (c.pads_missing != 0) {
+            // a missing pad's box over the pause (pad_missing_*, kind 2); not over the settings
+            // panel, after which it shows again
+            if (c.pads_missing != 0 && !fe.pause_settings) {
                 pad_missing_box_draw(fe, ui, 1);
             }
             if (fe.vs_mode && fe.screen.step < 3) {
@@ -231,9 +248,17 @@ void battle_screen_step(FrontEnd& fe, Ui& ui) {
         }
         if (--s.counter < 0) {
             fe.screen.step = 2;
+            if (fe.state == app_free_play) {
+                ui_music(ui, free_play_track, false); // free_play_screen_step2
+            }
         }
         break;
     case 2: // battle_enter_next2: until the battle writes its result
+        // the music: the playlist's next song after each 3 s gap (free play's step 3 too; the
+        // test drive plays its own track, test_drive_step)
+        if (fe.state != app_test_drive) {
+            fight_music_update(fe, ui);
+        }
         if (fe.vs_mode) {
             s.result = fe.world->vs.result; // the end menu's 2..5 (battle_update)
         } else if (b.end_state == 1 || b.end_state == 2) {
@@ -249,6 +274,9 @@ void battle_screen_step(FrontEnd& fe, Ui& ui) {
         break;
     case 3: // battle_enter_next3: the fade, then the answer (retail counts 15 updates against a
             // 15-tick fade and holds black a quarter second; here the answer comes once black)
+        if (fe.state != app_test_drive) {
+            fight_music_update(fe, ui);
+        }
         if (fade_is_black(ui)) {
             ui_music_stop(ui);
             if (fe.vs_mode) {
@@ -299,6 +327,7 @@ void battle_screen_destroy(FrontEnd& fe, Ui& ui) {
     b.live = false;
     fe.campaign.battle_stop = true;
     fe.campaign.paused = false;
+    fight_lists_commit(fe); // the playlists edited over the pause (music_panel.hpp)
     ui_music_stop(ui);
     if (ui.audio) {
         pause_sounds(*ui.audio, 1);
@@ -308,6 +337,9 @@ void battle_screen_destroy(FrontEnd& fe, Ui& ui) {
 // decomp: pause_toggle_update 0xE0590
 void battle_pause_toggle(FrontEnd& fe, Ui& ui, bool start_pressed) {
     Campaign& c = fe.campaign;
+    if (fe.report.mode != 0 || fe.pause_settings) {
+        return; // REPORT A BUG or the settings are up over the pause
+    }
     const StateInfo& info = fe.states[static_cast<std::size_t>(fe.state)];
     // Start pauses only in states 6, 0x2A and 0x2F, never while a fade blanks the pads, nor in
     // VS's end sequence (its menu has the quit)
@@ -363,9 +395,7 @@ void battle_events_play(FrontEnd& fe, Ui& ui) {
             ui_music(ui, e.a, e.b != 0);
             break;
         case BattleEventKind::Theme:
-            // tournament_theme_play: the tournament's theme isn't in the tables yet; the boss
-            // track (6) stands in
-            ui_music(ui, 6, false);
+            tournament_theme_play(ui, e.a);
             break;
         case BattleEventKind::SceneText:
             break; // the HUD's bark window plays it (src/hud/hud_barks.cpp)
@@ -377,12 +407,22 @@ void vs_pause_step(FrontEnd& fe, Ui& ui) {
     BattleScreen& s = fe.screen.campaign.battle;
     Campaign& c = fe.campaign;
     const PadRecord saved = ui.pad;
-    ui.pad = pads_or(fe, ui);
+    ui.pad = pause_pads(fe, ui);
     if (!s.quit_open) {
-        // continue or quit (sound 3 on a move, 5 on accept); cancel is read nowhere
-        PointerRect items[2] = {sprite_rect(ui, 0xe8f, 272, 226), sprite_rect(ui, 0xe90, 272, 248)};
-        menu_cursor(ui, c.pause_cursor, 0, 2, cursor_menu_vertical, 0, 3, items);
-        if (menu_accept(ui, &items[c.pause_cursor])) {
+        // continue or quit (sound 3 on a move, 5 on accept), then the PC's items; cancel is read
+        // nowhere
+        PointerRect items[2 + pause_items_max] = {sprite_rect(ui, 0xe8f, 272, 226),
+                                                  sprite_rect(ui, 0xe90, 272, 248)};
+        const int count = 2 + pause_items_count();
+        for (int i = 2; i < count; ++i) {
+            items[i] = pause_item_rect(i - 2, true);
+        }
+        menu_cursor(ui, c.pause_cursor, 0, count, cursor_menu_vertical, 0, 3, items);
+        if (c.pause_cursor >= 2) {
+            if (pause_item_accepted(ui, items[c.pause_cursor])) {
+                pause_item_open(fe, ui, c.pause_cursor - 2);
+            }
+        } else if (menu_accept(ui, &items[c.pause_cursor])) {
             ui_sound(ui, bank_sys, se_menu_accept);
             if (c.pause_cursor == 0) {
                 pause_release(fe, ui);

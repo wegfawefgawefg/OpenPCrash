@@ -9,7 +9,8 @@
 #include <vector>
 
 inline constexpr int cockpit_first_model = 0x4dd;
-inline constexpr int cockpit_model_count = 21; // 0x4DD..0x4F1
+inline constexpr int cockpit_model_count = 21;   // 0x4DD..0x4F1
+inline constexpr int cockpit_glow_model = 0x4dd; // the cloak glow, a unit ahead (hud_meters_build)
 
 // one submitted instrument: its model slot, its matrix under the identity view (the original's
 // frame), its texture factor (ModelRoot.factor with flag 0x20) and its second node's scale.x

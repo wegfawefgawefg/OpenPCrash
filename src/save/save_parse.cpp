@@ -78,6 +78,30 @@ bool read_story(In& in, FormView form, Story& story) {
     return true;
 }
 
+// (pc-rules ...), the port's: each value one of its rule's choices
+template <typename T, std::size_t N>
+bool rule_choice(In& in, FormView form, std::string_view name, const int (&choices)[N], T& out) {
+    int value = 0;
+    if (!field(in, form, name, value)) {
+        return false;
+    }
+    for (const int choice : choices) {
+        if (value == choice) {
+            out = static_cast<T>(value);
+            return true;
+        }
+    }
+    return fail(in, "(" + std::string(name) + ") " + std::to_string(value) + " is no choice");
+}
+
+bool read_rules(In& in, FormView form, CheatRules& rules) {
+    return flag(in, form, "cheated", rules.cheated) &&
+           flag(in, form, "infinite-money", rules.infinite_money) &&
+           rule_choice(in, form, "tune-divisor", tune_divisors, rules.tune_divisor) &&
+           rule_choice(in, form, "shop-divisor", shop_divisors, rules.shop_divisor) &&
+           rule_choice(in, form, "money-won", money_won_factors, rules.money_won);
+}
+
 bool read_pools(In& in, Node form, Story& story) {
     int seen = 0;
     for (std::size_t i = 1; i < form.child_count(); ++i) {
@@ -289,6 +313,8 @@ bool save_parse(std::string_view text, SaveImage& image, std::string& error) {
         } else if (head.is_atom("story")) {
             ok = read_story(in, form, image.story);
             ++sections;
+        } else if (head.is_atom("pc-rules")) {
+            ok = read_rules(in, form, image.story.cheats); // optional: older saves are retail
         } else if (head.is_atom("pools")) {
             ok = read_pools(in, form.node(), image.story);
             ++sections;

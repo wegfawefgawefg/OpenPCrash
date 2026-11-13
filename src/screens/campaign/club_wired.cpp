@@ -138,8 +138,10 @@ void club_wired_step(FrontEnd& fe, Ui& ui) {
         }
         break;
     case 2: { // step3: the wheel (silent cursor, read while still), accept mid-turn, cancel to 5
-        if (!c.turning) {
-            menu_cursor(ui, c.cursor, 0, 6, cursor_menu_horizontal, -1, -1);
+        // PC: a click beside the lit item or the wheel turns it, a click on the lit one enters
+        const int item = static_cast<int>(item_sprites(ui)[0]);
+        if (!c.turning && menu_cursor(ui, c.cursor, 0, 6, cursor_menu_horizontal, -1, -1) == 0) {
+            menu_wheel_pointer(ui, c.cursor, 6, item);
         }
         if (c.cursor != c.shown) {
             if (!c.turning) {
@@ -159,7 +161,7 @@ void club_wired_step(FrontEnd& fe, Ui& ui) {
         }
         club_draw(fe, ui, c);
         music_shuffle_pump(fe.music, ui, 1.0f, fe.updates);
-        if (menu_accept(ui)) {
+        if (menu_accept_pressed(ui.pad) || (ui.pointer.left && menu_wheel_pick(ui, item) == 0)) {
             ui_sound(ui, bank_sys, c.cursor == 5 ? se_shop_leave : se_menu_accept);
             c.fade_count = static_cast<int>(static_cast<float>(ui.frame_cadence) * 0.5f);
             fade_out_start(ui, static_cast<float>(c.fade_count));

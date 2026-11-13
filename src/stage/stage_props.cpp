@@ -4,6 +4,7 @@
 // table. All in the world, fixed point.
 #include "audio/audio.hpp"
 #include "audio/sound_cues.hpp"
+#include "battle/stage_collision.hpp"
 #include "stage/stage_world.hpp"
 
 namespace {
@@ -274,32 +275,51 @@ bool cell_near(const Prop& prop, FxVec3 p) {
 
 } // namespace
 
-bool prop_in_reach(const Prop& prop, FxVec3 centre) {
-    return prop_solid(prop) && cell_near(prop, centre);
+// decomp: stage_props_collide_sphere 0x6F7AE
+int stage_props_collide_sphere(StageWorld& stage, const StageCollision& grid,
+                               SphereQuery& sphere) {
+    int hits = 0;
+    for (Prop& prop : stage_props(stage)) {
+        if (!prop_solid(prop)) {
+            continue;
+        }
+        // a prop whose cell is within one of the sphere's: its triangles, and touched or not
+        if (cell_near(prop, sphere.centre)) {
+            const int contact = collision_prop_sphere(grid, prop.tris, sphere);
+            if (contact) {
+                hits |= contact | surface_prop;
+                prop.flags |= prop_touched;
+            } else {
+                prop.flags &= ~prop_touched;
+            }
+        }
+        // a touch starts the type's touch callback (a gate opens, a closing gate runs the rest
+        // of its swing backwards), unless the door scene shut it
+        if (prop.flags & prop_shutting) {
+            continue;
+        }
+        if (prop.flags & prop_touched && prop.step == PropStep::None) {
+            prop.timer = 0;
+            prop.step = touch_step(prop.type);
+        } else if (prop.flags & prop_touched && prop.step == PropStep::GateClosing) {
+            prop.timer = gate_swing_steps - prop.timer;
+            prop.step = touch_step(prop.type);
+        } else {
+            prop.flags &= ~prop_touched;
+        }
+    }
+    return hits;
 }
 
-// decomp: stage_props_collide_sphere 0x6F7AE
-void prop_touch_settle(StageWorld& stage, Prop& prop, bool in_reach, bool contact) {
-    (void)stage;
-    if (!prop_solid(prop)) {
-        return;
+bool stage_props_block(const StageWorld& stage, FxVec3 from, FxVec3 to) {
+    bool blocked = false;
+    for (const Prop& prop : stage_props(stage)) {
+        PropRayHit hit;
+        if (prop_solid(prop) && prop_ray_test(prop, from, to, false, &hit)) {
+            blocked = true;
+        }
     }
-    if (in_reach) {
-        prop.flags = contact ? prop.flags | prop_touched : prop.flags & ~prop_touched;
-    }
-    if (prop.flags & prop_shutting) {
-        return;
-    }
-    if (prop.flags & prop_touched && prop.step == PropStep::None) {
-        prop.timer = 0;
-        prop.step = touch_step(prop.type);
-    } else if (prop.flags & prop_touched && prop.step == PropStep::GateClosing) {
-        // a closing gate touched runs the rest of its swing backwards
-        prop.timer = gate_swing_steps - prop.timer;
-        prop.step = touch_step(prop.type);
-    } else {
-        prop.flags &= ~prop_touched;
-    }
+    return blocked;
 }
 
 // decomp: prop_ray_test 0x6FCB2

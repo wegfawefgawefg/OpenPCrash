@@ -2,6 +2,8 @@
 
 #include "audio/audio.hpp"
 #include "input/bindings.hpp"
+#include "perf_log.hpp"
+#include "report/reports.hpp"
 
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -89,6 +91,20 @@ const char* mode_text(WindowMode mode) {
     }
 }
 
+// the fights' music mode in the file: default, playlist, shuffle, repeat
+std::string fight_music_text(int mode) {
+    switch (mode) {
+    case 0:
+        return "playlist";
+    case 1:
+        return "shuffle";
+    case 2:
+        return "repeat";
+    default:
+        return "default";
+    }
+}
+
 // player 1's settings profile, made when missing (the catalog does it)
 GameSettings* player_settings(GubsyRuntime& runtime, bool make) {
     EngineState& engine = gubsy_runtime_engine(runtime);
@@ -105,10 +121,59 @@ GameSettings* player_settings(GubsyRuntime& runtime, bool make) {
     return build_settings_catalog(engine, 0).profile_settings;
 }
 
+// the settings a bug report carries (src/report/reports.hpp): what changes the picture, the sound
+// and the input, never the display's name
+void report_settings(const PcSettings& s) {
+    const auto on = [](bool b) { return std::string(b ? "on" : "off"); };
+    const auto n = [](int v) { return std::to_string(v); };
+    report_set_settings({
+        {"video.window_mode", mode_text(s.window_mode)},
+        {"video.window_size", size_text(s.window_w, s.window_h)},
+        {"video.fullscreen_mode",
+         s.full_w > 0 ? size_text(s.full_w, s.full_h, s.full_hz) : std::string("desktop")},
+        {"video.vsync", on(s.render.vsync)},
+        {"video.frame_cap", n(s.frame_cap)},
+        {"video.show_fps", on(s.show_fps)},
+        {"video.safe_area", on(s.safe_area)},
+        {"video.render_scale", n(s.render.render_scale)},
+        {"video.fit_43", on(s.render.fit_43)},
+        {"video.anisotropy", n(s.render.anisotropy)},
+        {"video.soft_focus", on(s.render.soft_focus)},
+        {"video.antialias", on(s.render.antialias)},
+        {"video.brightness", n(s.render.brightness)},
+        {"video.flashes", n(s.render.flashes)},
+        {"video.camera_shake", n(s.render.camera_shake)},
+        {"video.fov", n(s.render.fov)},
+        {"video.hud_width", n(s.render.hud_width)},
+        {"video.hud_size", n(s.render.hud_size)},
+        {"audio.master", n(s.master)},
+        {"audio.music", n(s.music)},
+        {"audio.effects", n(s.effects)},
+        {"audio.mute_unfocused", on(s.mute_unfocused)},
+        {"audio.fight_music", fight_music_text(s.fight_music)},
+        {"game.focus_pause", on(s.focus_pause)},
+        {"game.story_skip", on(s.story_skip)},
+        {"game.chatter_skip", on(s.chatter_skip)},
+        {"input.mouse_sensitivity", n(s.mouse_sensitivity)},
+        {"input.invert_y", on(s.invert_y)},
+        {"input.air_turn_mouse", on(s.air_turn_mouse)},
+        {"input.double_tap_step", on(s.double_tap_step)},
+        {"input.vibration_strength", n(s.vibration_strength)},
+        {"input.left_dead_zone", n(s.left_dead_zone)},
+        {"input.right_dead_zone", n(s.right_dead_zone)},
+        {"input.outer_dead_zone", n(s.outer_dead_zone)},
+    });
+}
+
 } // namespace
 
 void pc_settings_load(PcHost& host) {
     PcSettings& s = host.settings;
+    // the report's settings once they are read, whichever way this returns
+    struct Told {
+        const PcSettings& s;
+        ~Told() { report_settings(s); }
+    } told{s};
     if (!host.gubsy) {
         return;
     }
@@ -139,6 +204,7 @@ void pc_settings_load(PcHost& host) {
     s.render.brightness = std::clamp(read_int(top, key_brightness, 100), 50, 150);
     s.render.flashes = std::clamp(read_int(top, key_flashes, 100), 0, 100);
     s.render.camera_shake = std::clamp(read_int(top, key_camera_shake, 100), 0, 100);
+    s.render.fov = std::clamp(read_int(top, key_fov, 82), 82, 130);
     s.render.hud_width = std::clamp(read_int(top, key_hud_width, 100), 0, 100);
     s.render.hud_size = std::clamp(read_int(top, key_hud_size, 100), 70, 130);
     s.render.antialias = read_text(top, key_antialias, "off") == "fxaa";
@@ -147,6 +213,13 @@ void pc_settings_load(PcHost& host) {
     s.effects = std::clamp(read_int(top, key_effects, 100), 0, 100);
     s.mute_unfocused = read_int(top, key_mute_unfocused, 1) != 0;
     s.focus_pause = read_int(top, key_focus_pause, 1) != 0;
+    const std::string fight_music = read_text(top, key_fight_music, "default");
+    s.fight_music = -1;
+    for (int mode = 0; mode < 3; ++mode) {
+        if (fight_music == fight_music_text(mode)) {
+            s.fight_music = mode;
+        }
+    }
 
     // player 1's
     if (const GameSettings* player = player_settings(*host.gubsy, false)) {
@@ -158,6 +231,8 @@ void pc_settings_load(PcHost& host) {
                        dead_zone_min, dead_zone_max);
         s.outer_dead_zone = std::clamp(get_game_setting_int(*player, outer_dead_zone_key, 0), 0,
                                        outer_dead_zone_max);
+        s.air_turn_mouse = get_game_setting_int(*player, air_turn_mouse_key, 1) != 0;
+        s.double_tap_step = get_game_setting_int(*player, double_tap_step_key, 1) != 0;
         s.story_skip = get_game_setting_string(*player, story_talk_key, "show") == "skip";
         s.chatter_skip = get_game_setting_string(*player, battle_chatter_key, "show") == "skip";
     }
@@ -172,6 +247,7 @@ void pc_settings_load(PcHost& host) {
 
 void pc_settings_save(PcHost& host) {
     const PcSettings& s = host.settings;
+    report_settings(s);
     if (!host.gubsy) {
         return;
     }
@@ -200,6 +276,7 @@ void pc_settings_save(PcHost& host) {
     set_top_level_setting_int(top, key_brightness, s.render.brightness);
     set_top_level_setting_int(top, key_flashes, s.render.flashes);
     set_top_level_setting_int(top, key_camera_shake, s.render.camera_shake);
+    set_top_level_setting_int(top, key_fov, s.render.fov);
     set_top_level_setting_int(top, key_hud_width, s.render.hud_width);
     set_top_level_setting_int(top, key_hud_size, s.render.hud_size);
     set_top_level_setting_string(top, key_antialias, s.render.antialias ? "fxaa" : "off");
@@ -208,6 +285,7 @@ void pc_settings_save(PcHost& host) {
     set_top_level_setting_int(top, key_effects, s.effects);
     set_top_level_setting_int(top, key_mute_unfocused, s.mute_unfocused ? 1 : 0);
     set_top_level_setting_int(top, key_focus_pause, s.focus_pause ? 1 : 0);
+    set_top_level_setting_string(top, key_fight_music, fight_music_text(s.fight_music));
     if (!save_top_level_game_settings(top)) {
         std::fprintf(stderr, "settings: couldn't write the install's settings\n");
     }
@@ -217,6 +295,8 @@ void pc_settings_save(PcHost& host) {
         set_game_setting_int(*player, left_dead_zone_key, s.left_dead_zone);
         set_game_setting_int(*player, right_dead_zone_key, s.right_dead_zone);
         set_game_setting_int(*player, outer_dead_zone_key, s.outer_dead_zone);
+        set_game_setting_int(*player, air_turn_mouse_key, s.air_turn_mouse ? 1 : 0);
+        set_game_setting_int(*player, double_tap_step_key, s.double_tap_step ? 1 : 0);
         set_game_setting_string(*player, story_talk_key, s.story_skip ? "skip" : "show");
         set_game_setting_string(*player, battle_chatter_key, s.chatter_skip ? "skip" : "show");
         (void)save_game_settings(*player);
@@ -252,8 +332,10 @@ void pc_settings_focus(PcHost& host, bool focused) {
                    static_cast<float>(s.music) / 100.0f, static_cast<float>(s.effects) / 100.0f);
 }
 
-double pc_frame_seconds(const PcHost& host) {
-    return host.settings.frame_cap > 0 ? 1.0 / host.settings.frame_cap : 0.0;
+double pc_frame_seconds(const PcHost& host, bool still) {
+    const PcSettings& s = host.settings;
+    const double limit = 1.0 / (s.frame_cap > 0 ? s.frame_cap : frame_ceiling);
+    return still && !s.render.vsync ? std::max(limit, 1.0 / pc_display_hz(host)) : limit;
 }
 
 bool pc_window_event(PcHost& host, const SDL_Event& event) {
@@ -299,7 +381,8 @@ bool pc_window_event(PcHost& host, const SDL_Event& event) {
     return false;
 }
 
-void pc_frame_end(PcHost& host, std::uint64_t frame_start, bool capturing) {
+void pc_frame_end(PcHost& host, std::uint64_t frame_start, bool capturing, bool still) {
+    perf_frame_end(frame_start); // the run log's perf line (perf_log.hpp)
     // the frame rate, twice a second
     const std::uint64_t end = SDL_GetTicksNS();
     ++host.fps_frames;
@@ -318,11 +401,11 @@ void pc_frame_end(PcHost& host, std::uint64_t frame_start, bool capturing) {
         pc_settings_save(host);
     }
     // the frame limit
-    const double seconds = pc_frame_seconds(host);
-    if (seconds <= 0.0 || capturing) {
+    if (capturing) {
         return;
     }
-    const std::uint64_t until = frame_start + static_cast<std::uint64_t>(seconds * 1e9);
+    const std::uint64_t until =
+        frame_start + static_cast<std::uint64_t>(pc_frame_seconds(host, still) * 1e9);
     const std::uint64_t now = SDL_GetTicksNS();
     if (now < until) {
         SDL_DelayPrecise(until - now);

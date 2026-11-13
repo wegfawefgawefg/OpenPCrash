@@ -25,6 +25,7 @@ inline constexpr int hit_craft = 0x80000;
 inline constexpr int hit_crate = 0x100000;
 
 struct StageCollision;
+struct SphereQuery;
 
 // Prop.flags (include/stage.h)
 enum PropFlag : int {
@@ -217,12 +218,15 @@ void step_stage(StageWorld& stage, WorldRandom& random, std::int64_t step,
 // props (stage_props.cpp)
 void prop_init(Prop& prop, const PropPlacement& placement, const StagePropSet& set);
 void step_prop(StageWorld& stage, Prop& prop);
-// the props a fighter's sphere query tests: not gone or open, its cell within one of the prop's
-bool prop_in_reach(const Prop& prop, FxVec3 centre);
+// not gone and not an open gate: fighters collide with it
 bool prop_solid(const Prop& prop);
-// the end of stage_props_collide_sphere for one solid prop, once the fighter code has
-// run its contact tests on prop.tris: in_reach as above, contact whether any triangle touched
-void prop_touch_settle(StageWorld& stage, Prop& prop, bool in_reach, bool contact);
+// stage_props_collide_sphere: a fighter's sphere against the solid props whose cell is within one
+// of its own (collision_prop_sphere), each prop marked touched or not, a touch starting its touch
+// callback. The contact bits, with surface_prop (0x20000) when any prop was met
+int stage_props_collide_sphere(StageWorld& stage, const StageCollision& grid, SphereQuery& sphere);
+// sv_contact_route's last check of the move: whether the segment from -> to passes through a solid
+// prop's face from outside (prop_ray_test, one side)
+bool stage_props_block(const StageWorld& stage, FxVec3 from, FxVec3 to);
 // prop_ray_test: a segment against one prop's triangles (both_sides the original's
 // side). The nearest hit's point (lifted 0.05 off the face) and triangle
 struct PropRayHit {

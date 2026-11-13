@@ -108,8 +108,11 @@ void carousel_draw(Ui& ui, const PartTables& t, const CarouselLook& look, ChipSt
         }
         const int rel = i - c.shown;
         const int a = rel < 0 ? -rel : rel;
-        const float x = 321.0f + static_cast<float>(look.spacing * rel) +
-                        static_cast<float>(c.slide * c.dir * look.spacing) / 8.0f;
+        // still, the strip rests on the shown card: slide stays at 8 after a step, and adding its
+        // full offset drew every card a place along, the centre card big at the side
+        const int slid = still ? 0 : c.slide * c.dir * look.spacing;
+        const float x =
+            321.0f + static_cast<float>(look.spacing * rel) + static_cast<float>(slid) / 8.0f;
         const int target = c.shown + (c.dir < 0 ? 1 : c.dir > 0 ? -1 : 0);
         float drop = 12.0f, scale = 0.65f;
         if (still) {
@@ -180,7 +183,7 @@ void carousel_draw(Ui& ui, const PartTables& t, const CarouselLook& look, ChipSt
     }
 }
 
-int carousel_input(Ui& ui, ChipStrip& c, int count, bool ring) {
+int carousel_input(Ui& ui, ChipStrip& c, int count, bool ring, const PointerRect& leave_rect) {
     if (c.slide < 8) {
         menu_input_mark(ui);
         if (++c.slide >= 8) {
@@ -191,30 +194,42 @@ int carousel_input(Ui& ui, ChipStrip& c, int count, bool ring) {
     if (c.flash[3] != 0 || count == 0) {
         return 0;
     }
+    // PC: the pointer entering the cards or the leave button moves the line there
+    const PointerRect places[2] = {{clip_left, 100, clip_right, clip_bottom}, leave_rect};
+    int place = c.on_leave ? 1 : 0;
+    if (menu_cursor(ui, place, 0, 2, cursor_no_dpad, 0, 3, places) != 0) {
+        c.on_leave = place != 0;
+        return 2;
+    }
     int step = 0;
     if (!c.on_leave) {
-        const int before = c.cursor;
         step = menu_cursor(ui, c.cursor, 0, count, ring ? 0x17 : 0x13, 0, 4);
-        // the pointer: a click on a side card steps towards it
-        if (step == 0 && ui.pointer.left && ui.pointer.y > 136 && ui.pointer.y < 290) {
-            const int to = ui.pointer.x < 246 ? -1 : ui.pointer.x > 396 ? 1 : 0;
-            if (to != 0 && (ring || (c.cursor + to >= 0 && c.cursor + to < count))) {
-                c.cursor = ((c.cursor + to) % count + count) % count;
-                step = to;
-                ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
-                menu_input_mark(ui);
-                ui.pointer.left = false;
-            }
+        // PC: a click on a side card or its arrow steps towards it, and so does the wheel
+        const PointerRect sides[2] = {{clip_left, 100, 246, 290}, {396, 100, clip_right, 290}};
+        int to = 0;
+        if (step == 0 && ui.pointer.left) {
+            to = pointer_pick(ui.pointer, sides, 2);
+            to = to == 0 ? -1 : to == 1 ? 1 : 0;
+        }
+        if (step == 0 && to == 0 && ui.pointer.wheel != 0) {
+            to = ui.pointer.wheel > 0 ? -1 : 1;
+        }
+        if (to != 0 && (ring || (c.cursor + to >= 0 && c.cursor + to < count))) {
+            c.cursor = ((c.cursor + to) % count + count) % count;
+            step = to;
+            ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
+            menu_input_mark(ui);
+            ui.pointer.left = false;
         }
         if (step != 0) {
             c.slide = 0;
             // the wrap from last to first keeps the strip's direction
             c.dir = step > 0 ? -1 : 1;
-            (void)before;
         }
     }
+    // the leave line (the wheel is the d-pad's up and down: it steps the cards instead)
     int leave = c.on_leave ? 1 : 0;
-    if (menu_cursor(ui, leave, 0, 2, 0x12, 0, 3)) {
+    if (ui.pointer.wheel == 0 && menu_cursor(ui, leave, 0, 2, 0x12, 0, 3)) {
         c.on_leave = leave != 0;
         return 2;
     }

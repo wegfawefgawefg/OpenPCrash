@@ -11,6 +11,7 @@
 #include "story/rumble.hpp"
 #include "world/world.hpp"
 
+#include <SDL3/SDL.h>
 #include <cstdio>
 #include <cstdlib>
 
@@ -21,6 +22,12 @@ void front_end_enter_state(FrontEnd& fe, Ui& ui, int state) {
     fe.result = -1;
     std::printf("state 0x%x %s (update %d)\n", state,
                 fe.states[static_cast<std::size_t>(state)].name.c_str(), fe.updates);
+    // the boot's time to the title, once, in the run log (docs/performance.md)
+    static bool title_seen = false;
+    if (state == app_title && !title_seen) {
+        title_seen = true;
+        SDL_Log("load: boot to the title in %.1f ms", static_cast<double>(SDL_GetTicksNS()) * 1e-6);
+    }
     menu_input_mark(ui);
     fe.screen = Screen{};
     fe.screen_alive = true;

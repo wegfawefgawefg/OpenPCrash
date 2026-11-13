@@ -54,5 +54,12 @@ void slide_draw(Ui& ui, Slide& slide, int count, int frames, int blend, int y, c
 // wild_machines_menu_draw): eight sprites turning about the pivot, `shown` the item at
 // rest, turning to `cursor` over 8 frames
 void menu_wheel_draw(Ui& ui, const int* ids, int count, int shown, int cursor, int frame);
-// the wheel items' hit boxes for the pointer: the one at rest under the lit sprite only
-PointerRect menu_wheel_rect(Ui& ui, int lit_id);
+// PC: the pointer on a menu wheel. The items turn about their sprite's centre plus (159.5, 80.5)
+// (`item_id` one of them), a quarter pi apart, the lit one where its sprite rests; the part above
+// the footer shows. menu_wheel_pick: the item under the pointer counted from the lit one (+1 the
+// cursor's next), menu_wheel_missed off the wheel. menu_wheel_pointer: a click on an item beside
+// the lit one or a wheel notch turns the cursor a place towards it (count items round); returns the
+// step. A click on the lit item (pick 0) is the screen's accept.
+inline constexpr int menu_wheel_missed = -99;
+int menu_wheel_pick(Ui& ui, int item_id);
+int menu_wheel_pointer(Ui& ui, int& cursor, int count, int item_id);

@@ -11,6 +11,8 @@
 #include "input/pad_rumble.hpp"
 #include "input/script_input.hpp"
 #include "input/virtual_pads.hpp"
+#include "mech/dance_pose.hpp"
+#include "perf_log.hpp"
 #include "render/renderer.hpp"
 #include "render/scenery.hpp"
 #include "screens/pc/pc_settings.hpp"
@@ -21,7 +23,9 @@
 #include "view/combat_sounds.hpp"
 #include "view/combat_viewer.hpp"
 #include "view/fighter_sounds.hpp"
+#include "view/scene_camera.hpp"
 #include "viewer_battle.hpp"
+#include "viewer_pose.hpp"
 #include "viewer_world.hpp"
 #include "world/world_hash.hpp"
 
@@ -39,6 +43,16 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
                Audio* audio, GubsyRuntime& gubsy, InputDevices& devices, PcHost& pc) {
     InputScript script;
     std::string error;
+    // --pose: the scene's stage, fighters and frames (src/viewer_pose.hpp)
+    Pose pose;
+    const bool posed = !state.options.pose.empty();
+    if (posed) {
+        if (!load_pose(pose, state.options.pose, error)) {
+            std::fprintf(stderr, "pose: %s\n", error.c_str());
+            return 2;
+        }
+        pose_options(pose, state.options);
+    }
     if (!state.options.script.empty()) {
         if (!load_input_script(script, state.options.script, error)) {
             std::fprintf(stderr, "script: %s\n", error.c_str());
@@ -58,6 +72,22 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
     }
     std::printf("load: %.1f ms\n", static_cast<double>(SDL_GetTicksNS() - load_start) / 1e6);
     scenery.day = state.options.day;
+    // --dance: slot 0's build dancing alone in the free camera (mech/dance_pose.hpp)
+    Dance dance;
+    if (!state.options.dance.empty()) {
+        if (!state.options.camera_given || !load_dance(dance, state.options.dance, error)) {
+            std::fprintf(stderr, "dance: %s\n",
+                         state.options.camera_given ? error.c_str() : "needs --camera");
+            return 2;
+        }
+        dance.white = state.options.dance_white;
+        dance_build_clips(dance, scenery.mech);
+        scenery.dance = &dance;
+        // at the origin facing +z, so --camera is the same on every stage (only the light differs)
+        std::fill(std::begin(scenery.mech_position), std::end(scenery.mech_position), 0.0f);
+        scenery.mech_heading = 0;
+        std::printf("dance: %d ticks, %zu channels\n", dance.ticks, dance.channels.size());
+    }
     scenery.safe_rect = state.options.safe_rect || pc.settings.safe_area;
 
     // the world RNG's table. The index is retail's clock seed; 0 here so runs and captures
@@ -98,11 +128,17 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
         state.world.camera.yaw = to_angle(c[3] / 360.0f);
         state.world.camera.pitch = to_angle(c[4] / 360.0f);
     } else {
-        // slot 0 the build, slots 1.. the --opponents as AIs (src/viewer_battle.cpp)
+        // slot 0 the build, slots 1.. the --opponents as AIs (src/viewer_battle.cpp), with the
+        // seats' PC control settings as a game's fight has them
+        pc_controls_commit(state.world, gubsy);
         if (!viewer_battle_start(state, scenery, renderer, packs, error)) {
             std::fprintf(stderr, "battle: %s\n", error.c_str());
             return 1;
         }
+        if (posed) {
+            pose_place(state.world, pose);
+        }
+        perf_load("viewer battle", load_start); // the stage, the effects, the machines
         const Fighter& spawned = state.world.fighters[0];
         std::printf("fighter: leg class %d weight %.2f radius %.3f walk %.4f run %.4f%s jump "
                     "%.3f (speed %.5f thrust %.5f an update) turn %.3f deg dodge %.3f / %.3f "
@@ -149,7 +185,7 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
     PcArt pc_art; // the frame rate's letters
     HudView hud;
     PadRumble rumble;
-    const bool with_hud = !state.options.camera_given;
+    const bool with_hud = !state.options.camera_given && !(posed && pose.camera);
     if (with_hud) {
         if (!init_ui(ui, renderer, packs, audio, state.options.data_dir, error) ||
             !hud_init(hud, ui, state.world, error)) {
@@ -201,6 +237,7 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
         // run fixed steps: the pads read before each one
         int steps = 0;
         while (state.accumulator >= step_seconds && steps < max_steps_per_frame) {
+            const PerfScope timed(PerfPart::step);
             ReadOptions read;
             read.mouse_captured = SDL_GetWindowRelativeMouseMode(window);
             read.fight = true;
@@ -214,9 +251,14 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
                 inputs.pads[0] = next_script_pad(script);
                 inputs.aims[0] = MouseAim{};
             }
+            if (posed) {
+                pose_pads(pose, inputs);
+            }
             const World before = state.world;
             viewer_debug_hurt(state.world);
+            const std::uint64_t world_start = perf_now();
             step_world(state.world, inputs);
+            perf_world_step(perf_now() - world_start);
             world_hash_print(state.world, state.options.hash);
             take_step_poses(state.view, before, state.world);
             // the HUD follows the step: its events, rolls, marks and timers
@@ -286,6 +328,10 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
         // the cockpit's hit shake (view/cockpit_view.hpp)
         const float shake = static_cast<float>(renderer.options.camera_shake) / 100.0f;
         cockpit_shake_apply(camera, state.world, seat_slot(state.world, 0), shake);
+        // FIELD OF VIEW on the fighter's camera (not the free camera nor a pose's)
+        if (state.world.battle && !(posed && pose.camera)) {
+            fight_fov_apply(camera, 0, renderer.options.fov);
+        }
         // PHANTOMCRASH_DEV_EYE=x,y,z[,ahead] (captures): the main view from that offset of fighter
         // 0, looking at the point `ahead` in front of it (heading's forward), presentation only
         if (const char* eye = SDL_getenv("PHANTOMCRASH_DEV_EYE"); eye && fighters[0].present) {
@@ -305,6 +351,9 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
             camera.looks_at = true;
             camera.yaw = std::atan2(dx, dz);
             camera.pitch = std::atan2(dy, std::sqrt(dx * dx + dz * dz));
+        }
+        if (posed && pose.camera) {
+            pose_camera(pose, fighters, camera);
         }
         if (audio) {
             stage_audio_listener(*audio, camera.position, camera.yaw, camera.pitch);
@@ -337,7 +386,7 @@ int run_viewer(State& state, SDL_Window* window, Renderer& renderer, PackLibrary
         if (last) {
             state.running = false;
         }
-        pc_frame_end(pc, frame_start, capturing);
+        pc_frame_end(pc, frame_start, capturing, false);
     }
     // stop the pads' rumble, the stage's ambience and engine loops
     pad_rumble_stop(rumble, gubsy);

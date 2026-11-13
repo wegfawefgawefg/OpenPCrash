@@ -73,3 +73,16 @@ Delete them to make OpenPCrash ask for the disc again. Your saves are in
 saves/ and stay put.
 
 Run logs are in logs/. Send the newest along with a bug report.
+
+
+BUG REPORTS
+
+The first time, OpenPCrash asks whether to send crash reports. They are off
+unless you say yes. With yes, a crash, a hang or a start that fails sends a
+report on its own, and REPORT A BUG (in the pause, and in OPTIONS, PC CONFIG,
+GAME) sends your own note. A report holds the end of the run log with your
+home folder taken out, the build, your system and GPU names, your PC CONFIG
+settings and, from a fight, the fight's button presses (so it can be played
+back exactly); your own report can add a small picture of the paused fight.
+No names, and the server keeps no addresses. Turn it off in OPTIONS, PC
+CONFIG, GAME, CRASH REPORTS.

@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <string>
 
 namespace {
@@ -91,6 +92,45 @@ void virtual_pads_frame(int frame) {
             from = comma + 1;
         }
     }
+    // PHANTOMCRASH_MOUSE_WHEEL="F:N,...": N wheel notches at frame F (away positive)
+    if (const char* wheels = std::getenv("PHANTOMCRASH_MOUSE_WHEEL")) {
+        const std::string text = wheels;
+        for (std::size_t from = 0; from < text.size();) {
+            const std::size_t comma = std::min(text.find(',', from), text.size());
+            int at = 0;
+            float notches = 0;
+            if (std::sscanf(text.substr(from, comma - from).c_str(), "%d:%f", &at, &notches) == 2 &&
+                at == frame) {
+                SDL_Event event{};
+                event.type = SDL_EVENT_MOUSE_WHEEL;
+                event.wheel.y = notches;
+                event.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+                SDL_PushEvent(&event);
+            }
+            from = comma + 1;
+        }
+    }
+    // PHANTOMCRASH_MOUSE_CLICK="F:B,...": mouse button B (1 left, 3 right) pressed and let go at
+    // frame F where the pointer is
+    if (const char* clicks = std::getenv("PHANTOMCRASH_MOUSE_CLICK")) {
+        const std::string text = clicks;
+        for (std::size_t from = 0; from < text.size();) {
+            const std::size_t comma = std::min(text.find(',', from), text.size());
+            int at = 0, button = 0;
+            if (std::sscanf(text.substr(from, comma - from).c_str(), "%d:%d", &at, &button) == 2 &&
+                at == frame) {
+                SDL_Event event{};
+                event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+                event.button.button = static_cast<Uint8>(button);
+                event.button.down = true;
+                SDL_PushEvent(&event);
+                event.type = SDL_EVENT_MOUSE_BUTTON_UP;
+                event.button.down = false;
+                SDL_PushEvent(&event);
+            }
+            from = comma + 1;
+        }
+    }
     // PHANTOMCRASH_KEY_PRESS="F:KEY,...": a key tapped at frame F (SDL's key names: Return,
     // Escape, Down...); the input layer latches it as one read held
     if (const char* keys = std::getenv("PHANTOMCRASH_KEY_PRESS")) {
@@ -108,6 +148,24 @@ void virtual_pads_frame(int frame) {
                 SDL_PushEvent(&event);
                 event.type = SDL_EVENT_KEY_UP;
                 event.key.down = false;
+                SDL_PushEvent(&event);
+            }
+            from = comma + 1;
+        }
+    }
+    // PHANTOMCRASH_TEXT="F:text,...": `text` typed at frame F, as SDL's text event (the name
+    // entry's captures); kept for the run, as the event points at it
+    if (const char* typed = std::getenv("PHANTOMCRASH_TEXT")) {
+        static std::deque<std::string> texts;
+        const std::string text = typed;
+        for (std::size_t from = 0; from < text.size();) {
+            const std::size_t comma = std::min(text.find(',', from), text.size());
+            const std::size_t colon = text.find(':', from);
+            if (colon < comma && std::atoi(text.substr(from, colon - from).c_str()) == frame) {
+                texts.push_back(text.substr(colon + 1, comma - colon - 1));
+                SDL_Event event{};
+                event.type = SDL_EVENT_TEXT_INPUT;
+                event.text.text = texts.back().c_str();
                 SDL_PushEvent(&event);
             }
             from = comma + 1;

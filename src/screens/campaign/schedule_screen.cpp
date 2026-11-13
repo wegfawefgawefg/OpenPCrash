@@ -232,12 +232,11 @@ void draw(FrontEnd& fe, Ui& ui, ScheduleScreen& s) {
     sprite_row_draw(ui, slot(ui, "schedule_sprites", 6));
     sprite_row_draw(ui, slot(ui, "schedule_sprites", 7));
     grid_draw(fe, ui, s);
+    // the cells' plates are drawn from their corner (grid_draw), not centred there
     for (int i = 0; i < 5; ++i) {
         for (int r = 0; r < 3; ++r) {
-            s.cells[r][i] = PointerRect{static_cast<float>(i * 0x53 + 0x9e) - 36.0f,
-                                        static_cast<float>(r * 0x3e + 0x9f) - 26.0f,
-                                        static_cast<float>(i * 0x53 + 0x9e) + 36.0f,
-                                        static_cast<float>(r * 0x3e + 0x9f) + 26.0f};
+            s.cells[r][i] = sprite_rect(ui, 0x934, static_cast<float>(i * 0x53 + 0x9e),
+                                        static_cast<float>(r * 0x3e + 0x9f));
         }
     }
     s.exit_rect = sprite_rect(ui, slot(ui, "schedule_sprites_4", 1).sprite, 261, 349);
@@ -289,6 +288,18 @@ void input(FrontEnd& fe, Ui& ui, ScheduleScreen& s) {
         }
         return;
     }
+    // PC: the pointer lights the cell or EXIT it enters
+    PointerRect places[16];
+    for (int i = 0; i < 15; ++i) {
+        places[i] = s.cells[i / 5][i % 5];
+    }
+    places[15] = s.exit_rect;
+    int place = s.row == 3 ? 15 : s.row * 5 + s.col;
+    if (menu_cursor(ui, place, 0, 16, cursor_no_dpad, bank_sys, se_menu_cursor_horizontal,
+                    places)) {
+        s.row = place == 15 ? 3 : place / 5;
+        s.col = place == 15 ? s.col : place % 5;
+    }
     if (s.row == 3) {
         if (menu_accept(ui, &s.exit_rect)) {
             ui_sound(ui, bank_sys, se_menu_accept);
@@ -338,10 +349,15 @@ void input(FrontEnd& fe, Ui& ui, ScheduleScreen& s) {
         }
     } else if (menu_cursor(ui, s.row, 0, 4, cursor_menu_vertical, 0, 3) == 0) {
         // the triggers: five days on or back (schedule_fade_step's one-update dip of the days)
+        // PC: and a click on the arrows beside the grid
+        const PadRecord pad = menu_pad_unclicked(ui);
+        const PointerRect arrows[2] = {{4, 214, 52, 272}, {588, 214, 636, 272}};
+        const int arrow = ui.pointer.left ? pointer_pick(ui.pointer, arrows, 2) : -1;
         const bool right =
-            pad_button_test(ui.pad, PadEdge::Pressed, PadMatch::Any, pad_right_trigger);
+            arrow == 1 || pad_button_test(pad, PadEdge::Pressed, PadMatch::Any, pad_right_trigger);
         const bool left =
-            !right && pad_button_test(ui.pad, PadEdge::Pressed, PadMatch::Any, pad_left_trigger);
+            !right &&
+            (arrow == 0 || pad_button_test(pad, PadEdge::Pressed, PadMatch::Any, pad_left_trigger));
         if ((right || left) && s.shift == 0) {
             if (right) {
                 s.col = 0;
@@ -360,21 +376,6 @@ void input(FrontEnd& fe, Ui& ui, ScheduleScreen& s) {
             s.anim_timer = step;
             ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
             s.fade_step = true;
-        }
-    }
-    // a click on another cell moves there
-    if (ui.pointer.moved) {
-        for (int r = 0; r < 3; ++r) {
-            for (int i = 0; i < 5; ++i) {
-                const PointerRect& c = s.cells[r][i];
-                if (ui.pointer.x >= c.left && ui.pointer.x < c.right && ui.pointer.y >= c.top &&
-                    ui.pointer.y < c.bottom && (r != s.row || i != s.col)) {
-                    s.row = r;
-                    s.col = i;
-                    ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
-                    menu_input_mark(ui);
-                }
-            }
         }
     }
     if (s.row < 3) {

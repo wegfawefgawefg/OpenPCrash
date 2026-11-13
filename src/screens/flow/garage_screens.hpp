@@ -47,6 +47,9 @@ struct NameEntryScreen {
     float pulse = 0; // name_entry_pulse_phase
     TextStrip help[3];
     MsgBox boxes[3];
+    // the PC keyboard's, for the next input (name_entry_keys.cpp): glyphs typed,
+    // name_typed_delete, name_typed_done
+    std::vector<int> typed;
 };
 
 // garage_screen_* (0xD), the hub

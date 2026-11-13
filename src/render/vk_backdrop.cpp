@@ -55,9 +55,15 @@ bool make_resume_pass(RendererState& vk) {
                     "create resume pass");
 }
 
-// the scene's 640x480 screen (stretched, or fitted 4:3 with bars) over the whole of `to`, which
+constexpr float whole_screen[4] = {0, 0, 640, 480};
+// viewport_layouts' one view: the title-safe rectangle retail draws the 3D in
+constexpr float safe_rect[4] = {32, 16, 576, 448};
+
+// the rectangle `from` (x, y, width, height in 640x480 screen pixels) of the scene's 640x480
+// screen (stretched, or fitted 4:3 with bars) onto the rectangle `into` of `to`'s 640x480, which
 // starts and ends sampled: the programs address it in the original's 640x480 texels
-void copy_screen(RendererState& vk, VkCommandBuffer command, const GpuImage& to) {
+void copy_screen(RendererState& vk, VkCommandBuffer command, const GpuImage& to,
+                 const float* from = whole_screen, const float* into = whole_screen) {
     const float tw = static_cast<float>(vk.scene.width), th = static_cast<float>(vk.scene.height);
     float sx = tw / 640.0f, sy = th / 480.0f, ox = 0, oy = 0;
     if (vk.options.fit_43) {
@@ -65,12 +71,17 @@ void copy_screen(RendererState& vk, VkCommandBuffer command, const GpuImage& to)
         ox = (tw - 640.0f * sx) * 0.5f;
         oy = (th - 480.0f * sy) * 0.5f;
     }
+    const float dx = static_cast<float>(to.width) / 640.0f;
+    const float dy = static_cast<float>(to.height) / 480.0f;
     VkImageBlit blit{};
     blit.srcSubresource = blit.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-    blit.srcOffsets[0] = {static_cast<int>(ox), static_cast<int>(oy), 0};
-    blit.srcOffsets[1] = {static_cast<int>(ox + 640.0f * sx), static_cast<int>(oy + 480.0f * sy),
-                          1};
-    blit.dstOffsets[1] = {to.width, to.height, 1};
+    blit.srcOffsets[0] = {static_cast<int>(ox + from[0] * sx), static_cast<int>(oy + from[1] * sy),
+                          0};
+    blit.srcOffsets[1] = {static_cast<int>(ox + (from[0] + from[2]) * sx),
+                          static_cast<int>(oy + (from[1] + from[3]) * sy), 1};
+    blit.dstOffsets[0] = {static_cast<int>(into[0] * dx), static_cast<int>(into[1] * dy), 0};
+    blit.dstOffsets[1] = {static_cast<int>((into[0] + into[2]) * dx),
+                          static_cast<int>((into[1] + into[3]) * dy), 1};
     vk_barrier(command, vk.scene.image, VK_IMAGE_ASPECT_COLOR_BIT,
                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
     vk_barrier(command, to.image, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -147,8 +158,35 @@ void vk_record_backdrop(RendererState& vk, VkCommandBuffer command) {
     vkCmdBeginRenderPass(command, &pass, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void vk_record_scene_last(RendererState& vk, VkCommandBuffer command) {
-    if (vk.scene_last.image) {
+void vk_record_scene_last(RendererState& vk, VkCommandBuffer command, const FrameSetup& setup) {
+    if (!vk.scene_last.image) {
+        return;
+    }
+    // retail's 0x223 holds the 3D in the title-safe rectangle with clear_color (black) around
+    // it, and the big screens show all of it: their uvs run 0..640 by 0..520 texels, the last 40
+    // rows clamped to the black of row 479. The port's 3D is stretched over the whole screen
+    // unless the safe-area option is on: then the rectangle the frame's views cover goes into the
+    // safe one, and the black margins, cleared at creation, are never written (a stretched copy
+    // clamped its bottom picture rows down the screen instead)
+    float views[4];
+    const int count = setup.view_count > 0 ? setup.view_count : 1;
+    float x0 = 640, y0 = 480, x1 = 0, y1 = 0;
+    for (int v = 0; v < count; ++v) {
+        const float* r = setup.view_count > 0 ? setup.views[v].viewport : setup.viewport;
+        x0 = std::min(x0, r[0]);
+        y0 = std::min(y0, r[1]);
+        x1 = std::max(x1, r[0] + r[2]);
+        y1 = std::max(y1, r[1] + r[3]);
+    }
+    views[0] = x0;
+    views[1] = y0;
+    views[2] = x1 - x0;
+    views[3] = y1 - y0;
+    const bool stretched = x0 < safe_rect[0] || y0 < safe_rect[1] ||
+                           x1 > safe_rect[0] + safe_rect[2] || y1 > safe_rect[1] + safe_rect[3];
+    if (stretched && views[2] > 0 && views[3] > 0) {
+        copy_screen(vk, command, vk.scene_last, views, safe_rect);
+    } else {
         copy_screen(vk, command, vk.scene_last);
     }
 }

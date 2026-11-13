@@ -42,7 +42,7 @@ void hud_draw_radar(HudView& hud, Ui& ui, const World& world, const HudFrame& fr
     // radar_center: the reticle's point in pixels
     const float cu = lerpf(s.center[0][0], s.center[1][0], frame.alpha);
     const float cv = lerpf(s.center[0][1], s.center[1][1], frame.alpha);
-    const float cx = hud_px(frame, cu), cy = hud_py(frame, cv);
+    const float cx = hud_wx(frame, cu), cy = hud_wy(frame, cv);
 
     // off-screen arrows, from the last visible to the first: alive, off screen, near and ahead.
     // The angle is the other's offset in the aim frame, sideways and up (port frame: the
@@ -79,7 +79,7 @@ void hud_draw_radar(HudView& hud, Ui& ui, const World& world, const HudFrame& fr
         }
         const float tu = lerpf(s.sense[0][i][0], s.sense[1][i][0], frame.alpha);
         const float tv = lerpf(s.sense[0][i][1], s.sense[1][i][1], frame.alpha);
-        hud_fighter_tag_draw(hud, ui, world, me, i, hud_px(frame, tu), hud_py(frame, tv));
+        hud_fighter_tag_draw(hud, ui, world, me, i, hud_wx(frame, tu), hud_wy(frame, tv));
     }
 
     // the ring

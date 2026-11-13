@@ -62,6 +62,13 @@ inline constexpr int surface_unmarked = 0x10000 | 0x4000 | 0x400 | surface_prop 
 // collision_query_sphere: the sphere pushed out of the faces in its cell, then (no wall
 // face touched) out of their edges, then (no edge either) their corners; the velocity bounced
 int collision_query_sphere(const StageCollision& grid, SphereQuery& sphere);
+// stage_props_collide_sphere's tests of one prop's twelve triangles, whose surface type is 0 (the
+// prop pool's zeroed words: prop_init never writes it): each one the sphere's path crosses from
+// above (collision_tri_segment_frame) puts the centre a radius over the crossing, which sits 0.05
+// over the face, and bounces the velocity (0x20); with none, the faces; with none, the edges (2);
+// with none, the corners (4). The contact bits, 0 for none
+int collision_prop_sphere(const StageCollision& grid, const FxTri (&tris)[12],
+                          SphereQuery& sphere);
 // the first triangle of the sphere's cell carrying surface `bit` whose face the centre is within
 // `reach` of (above its plane, inside it): the face collision_face_test would have met, for
 // presentation (the contact decal's frame, which the world doesn't keep). Changes nothing

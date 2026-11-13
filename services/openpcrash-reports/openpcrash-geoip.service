@@ -1,0 +1,20 @@
+[Unit]
+Description=OpenPCrash visit count: fetch the DB-IP city database
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/openpcrash-reports/geoip.py --dir /var/lib/openpcrash-reports
+Nice=19
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/private/openpcrash-reports
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true

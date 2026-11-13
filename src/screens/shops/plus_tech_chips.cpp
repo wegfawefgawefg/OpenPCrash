@@ -9,6 +9,14 @@
 
 namespace {
 
+// a Chip's tune from chip_tune_was to chip_tune: the prices' difference, TUNE PRICES (PC CONFIG's
+// CHEATS) dividing it
+int chip_tune_cost(FrontEnd& fe, int id, const PlusTechScreen& p) {
+    return cheat_tune_price(fe.world->story.cheats,
+                            shop_item_price(fe.shop.tables, 4, id, p.chip_tune) -
+                                shop_item_price(fe.shop.tables, 4, id, p.chip_tune_was));
+}
+
 // the Plus Tech carousel's sprites (plus_tech_chip_list_draw)
 const CarouselLook plus_tech_look = {150, false, 0xaa1, 0xa9d, 0xa9a, 0xa95, 0xaa5,
                                      0xaa3, 0xa94, 0xaa4, 0xaac, 121, 282, 0xa91, 0xa92, 436, 323};
@@ -81,8 +89,7 @@ void plus_tech_chip_list_draw(FrontEnd& fe, Ui& ui, PlusTechScreen& p, bool inpu
 // decomp: plus_tech_chip_card_draw 0x30B5B
 void plus_tech_chip_card_draw(FrontEnd& fe, Ui& ui, PlusTechScreen& p) {
     const GarageEntry& e = p.editor.pages[4].entries[static_cast<std::size_t>(p.chips.cursor)];
-    const int cost = shop_item_price(fe.shop.tables, 4, e.id, p.chip_tune) -
-                     shop_item_price(fe.shop.tables, 4, e.id, p.chip_tune_was);
+    const int cost = chip_tune_cost(fe, e.id, p);
     uplift_card_draw(ui, fe.shop.tables, p.chips, e.id, p.chip_tune_was, p.chip_tune_was,
                      p.chip_tune, cost, fe.world->story.money, true);
 }
@@ -93,7 +100,8 @@ int plus_tech_chip_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p, int step) {
     const int count = static_cast<int>(p.editor.pages[4].entries.size());
     switch (step) {
     case 0: { // step10: the carousel
-        const int moved = carousel_input(ui, c, count, false);
+        const PointerRect leave = sprite_rect(ui, 0xa91, 436, 323);
+        const int moved = carousel_input(ui, c, count, false, leave);
         if (moved != 0) {
             chip_line(fe, ui, p);
         }
@@ -102,7 +110,6 @@ int plus_tech_chip_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p, int step) {
             return -1;
         }
         const PointerRect card = {246, 136, 396, 286};
-        const PointerRect leave = sprite_rect(ui, 0xa91, 436, 323);
         if (menu_accept(ui, c.on_leave ? &leave : &card)) {
             ui_sound(ui, bank_sys, se_menu_accept);
             if (c.on_leave) {
@@ -150,8 +157,7 @@ int plus_tech_chip_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p, int step) {
                 return -1;
             }
             const GarageEntry& e = p.editor.pages[4].entries[static_cast<std::size_t>(c.cursor)];
-            const int cost = shop_item_price(fe.shop.tables, 4, e.id, p.chip_tune) -
-                             shop_item_price(fe.shop.tables, 4, e.id, p.chip_tune_was);
+            const int cost = chip_tune_cost(fe, e.id, p);
             ui_sound(ui, bank_sys, se_menu_accept);
             if (w.story.money < cost) {
                 p.message = 5;
@@ -189,8 +195,7 @@ int plus_tech_chip_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p, int step) {
                 }
                 const GarageEntry& e =
                     p.editor.pages[4].entries[static_cast<std::size_t>(c.cursor)];
-                const int cost = shop_item_price(fe.shop.tables, 4, e.id, p.chip_tune) -
-                                 shop_item_price(fe.shop.tables, 4, e.id, p.chip_tune_was);
+                const int cost = chip_tune_cost(fe, e.id, p);
                 ui_sound(ui, bank_sys, se_purchase);
                 money_add(w.story, -cost);
                 w.garages.inventory[e.item].tune = static_cast<std::int8_t>(p.chip_tune);

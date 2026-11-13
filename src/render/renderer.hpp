@@ -184,6 +184,7 @@ struct RenderOptions {
     int brightness = 100;       // percent: a power curve over the 3D alone, 100 changes nothing
     int flashes = 100;          // percent: the effects' lights, muzzle flash, flare, hit flicker
     int camera_shake = 100;     // percent: the cockpit's hit shake (src/view/cockpit_view.hpp)
+    int fov = 82; // FIELD OF VIEW: degrees across at 16:9, 82 retail (view/scene_camera.hpp)
     int hud_width = 100; // percent: how far edge-anchored 2D moves out of the 4:3 box (0 none)
     int hud_size = 100;  // percent: the battle HUD's pieces scaled about their corners (70..130)
 };
@@ -198,6 +199,9 @@ struct Renderer {
     // the screen adjust (GameState.screen_shift_x/y, Ui::screen_shift), 640x480 screen pixels:
     // every 3D viewport moves by it, as retail's (render.md "viewports"), with the 2D over it
     int screen_shift[2] = {0, 0};
+    // the device and its driver, as a bug report names them ("NVIDIA GeForce RTX 3070, NVIDIA
+    // 550.54.14, Vulkan 1.3.277")
+    std::string device;
 };
 
 // Vulkan's loader is there: on Windows vulkan-1.dll comes with the graphics drivers and is loaded

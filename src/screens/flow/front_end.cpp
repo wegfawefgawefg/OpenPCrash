@@ -3,7 +3,9 @@
 #include "audio/audio.hpp"
 #include "cook/sexp_read.hpp"
 #include "input/menu_input.hpp"
+#include "perf_log.hpp"
 #include "save/save.hpp"
+#include "screens/pc/pause_settings.hpp"
 #include "story/rumble.hpp"
 #include "world/world.hpp"
 
@@ -183,6 +185,7 @@ bool init_front_end(FrontEnd& fe, Ui& ui, World& world, MachineOptions& machine,
 }
 
 void front_end_update(FrontEnd& fe, Ui& ui) {
+    const PerfScope timed(PerfPart::menus);
     ++fe.updates;
     // tasks_run: the clock, then the AppState task (its entry or its update), then the screen
     ui.task_timer += static_cast<std::uint32_t>(60 / ui.frame_cadence);
@@ -199,10 +202,15 @@ void front_end_update(FrontEnd& fe, Ui& ui) {
     front_end_update_state(fe, ui);
     // the lost-controller box blanks the screen's pads while it is up (pad_watch.cpp)
     pad_watch_frame(fe, ui);
+    // the bug reports' question or REPORT A BUG over the screen, which then reads no pad; the
+    // pause's settings the same over a paused fight
+    report_panel_frame(fe, ui);
+    pause_settings_frame(fe, ui);
     if (fe.screen_alive && !fe.screen_new) {
         front_end_step_screen(fe, ui);
     }
     pad_watch_draw(fe, ui);
+    report_panel_draw(fe, ui);
     fe.screen_new = false;
     menu_screens_frame(fe, ui);
     // screen_fade_frame
@@ -210,7 +218,8 @@ void front_end_update(FrontEnd& fe, Ui& ui) {
 }
 
 bool front_end_event(FrontEnd& fe, Ui& ui, const SDL_Event& event) {
-    return pc_settings_event(fe, ui, event);
+    return report_panel_event(fe, ui, event) || name_entry_event(fe, ui, event) ||
+           pc_settings_event(fe, ui, event);
 }
 
 bool front_end_pads_blank(const FrontEnd&, const Ui& ui) {
@@ -304,9 +313,15 @@ bool menu_cancel(Ui& ui) {
 int menu_cursor(Ui& ui, int& value, int lo, int count, unsigned flags, int bank, int cue,
                 const PointerRect* rects) {
     int step = menu_cursor_move(ui.pad, value, lo, count, flags);
-    if (step == 0 && rects && ui.pointer.moved) {
+    // the pointer entering an item selects it, and so does a click on it (a list's rects can sit
+    // where another screen's were, the same item of the same array, so entering alone can miss)
+    if (step == 0 && rects && (ui.pointer.moved || ui.pointer.left)) {
         const int hit = pointer_pick(ui.pointer, rects, count);
-        if (hit >= 0 && lo + hit != value) {
+        const bool entered =
+            rects != ui.pointer.hover_list || hit != ui.pointer.hover_item || ui.pointer.left;
+        ui.pointer.hover_list = rects;
+        ui.pointer.hover_item = hit;
+        if (entered && hit >= 0 && lo + hit != value) {
             step = lo + hit > value ? 1 : -1;
             value = lo + hit;
         }
@@ -315,5 +330,70 @@ int menu_cursor(Ui& ui, int& value, int lo, int count, unsigned flags, int bank,
         ui_sound(ui, bank, cue);
         menu_input_mark(ui);
     }
+    return step;
+}
+
+PadRecord menu_pad_unclicked(const Ui& ui) {
+    PadRecord pad = ui.pad;
+    if (ui.pointer.left || ui.pointer.right || ui.pointer.held) {
+        const auto keep = static_cast<std::uint16_t>(~(pad_left_trigger | pad_right_trigger));
+        pad.b.rising &= keep;
+        pad.b.repeat &= keep;
+        pad.b.cur &= keep;
+    }
+    return pad;
+}
+
+int menu_wheel(Ui& ui, int& value, int lo, int count, bool wrap, int bank, int cue) {
+    if (ui.pointer.wheel == 0 || count <= 1) {
+        return 0;
+    }
+    const int step = ui.pointer.wheel > 0 ? -1 : 1;
+    const int hi = lo + count - 1;
+    int v = value + step;
+    if (v < lo) {
+        v = wrap ? hi : lo;
+    } else if (v > hi) {
+        v = wrap ? lo : hi;
+    }
+    if (v == value) {
+        return 0;
+    }
+    value = v;
+    if (bank >= 0) {
+        ui_sound(ui, bank, cue);
+    }
+    menu_input_mark(ui);
+    return step;
+}
+
+int menu_list_pointer(Ui& ui, int& cursor, int& scroll, int total, int rows, unsigned flags,
+                      const PointerRect* row_rects, const PointerRect* up,
+                      const PointerRect* down) {
+    const MenuPointer& p = ui.pointer;
+    // an arrow clicked: the d-pad's press on a copy of the pad
+    const bool on_up = up && pointer_inside(p, *up);
+    if (p.left && (on_up || (down && pointer_inside(p, *down)))) {
+        PadRecord pad{};
+        const std::uint16_t bit = on_up ? pad_dpad_up : pad_dpad_down;
+        pad.b.cur = pad.b.rising = pad.b.repeat = bit;
+        int moved = 0;
+        menu_list_move(pad, cursor, scroll, 0, total, rows, flags & ~cursor_no_dpad, moved);
+        ui.pointer.left = false;
+        return moved;
+    }
+    if (!row_rects || !(p.moved || p.left)) {
+        return 0;
+    }
+    const int shown = total < rows ? total : rows;
+    const int hit = pointer_pick(p, row_rects, shown);
+    const bool entered = row_rects != p.hover_list || hit != p.hover_item || p.left;
+    ui.pointer.hover_list = row_rects;
+    ui.pointer.hover_item = hit;
+    if (!entered || hit < 0 || hit == cursor) {
+        return 0;
+    }
+    const int step = hit > cursor ? 1 : -1;
+    cursor = hit;
     return step;
 }

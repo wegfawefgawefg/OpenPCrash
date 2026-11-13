@@ -371,9 +371,10 @@ void casings_update(Effects& fx);
 void casings_queue(const Effects& fx, float t, const Mat4& view, std::vector<PassItem>& items);
 // cockpit_draw.cpp: the HUD's cockpit instruments this frame into pass 11
 struct HudCockpit;
-// and the in-world readout's quads on quad (textured_quad_draw's grid_mdl, the stage view's)
+// and the in-world readout's quads on quad (textured_quad_draw's grid_mdl, the stage view's);
+// aspect: the view's, which the cloak glow is widened to cover past 4:3
 void effects_queue_cockpit(Effects& fx, const HudCockpit& cockpit, const ModelObject& quad,
-                           int quad_mesh, std::vector<PassItem>& items);
+                           int quad_mesh, float aspect, std::vector<PassItem>& items);
 // screen_effects.cpp
 void screen_scratch_add(Effects& fx, float y, int life, float speed, int kind);
 void screen_effects_update(Effects& fx, const World& world);

@@ -1,6 +1,8 @@
 #include "render/vk_internal.hpp"
 #include "render/vk_sprites.hpp"
 
+#include "perf_log.hpp"
+
 #include <algorithm>
 #include <cstring>
 
@@ -12,27 +14,21 @@ VkSamplerAddressMode address_mode(Address address) {
                                         : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 }
 
-// copies bytes into a new device-local buffer through a staging one
+// copies bytes into a new device-local buffer through the uploads' staging
 bool upload_buffer(RendererState& vk, const void* data, VkDeviceSize size, VkBufferUsageFlags usage,
                    GpuBuffer& out) {
-    GpuBuffer staging;
-    if (!vk_create_buffer(
-            vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging)) {
+    VkBuffer staging = VK_NULL_HANDLE;
+    VkDeviceSize staged = 0;
+    if (!vk_upload_bytes(vk, data, size, staging, staged)) {
         return false;
     }
-    void* mapped = nullptr;
-    vkMapMemory(vk.device, staging.memory, 0, size, 0, &mapped);
-    std::memcpy(mapped, data, size);
-    vkUnmapMemory(vk.device, staging.memory);
     bool ok = vk_create_buffer(vk, size, usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, out);
     if (ok) {
         VkCommandBuffer command = vk_upload_command(vk);
-        VkBufferCopy copy{0, 0, size};
-        vkCmdCopyBuffer(command, staging.buffer, out.buffer, 1, &copy);
+        VkBufferCopy copy{staged, 0, size};
+        vkCmdCopyBuffer(command, staging, out.buffer, 1, &copy);
     }
-    vk_upload_keep(vk, staging);
     return ok;
 }
 
@@ -87,6 +83,7 @@ void renderer_free_mesh(Renderer& renderer, int mesh) {
         return;
     }
     vk.freed_meshes.push_back(vk.meshes[static_cast<std::size_t>(mesh)]);
+    vk_stream_forget(vk, vk.freed_meshes.back().vertices.buffer, VK_NULL_HANDLE);
     vk.meshes[static_cast<std::size_t>(mesh)] = {};
     vk.free_meshes.push_back(mesh);
 }
@@ -99,6 +96,7 @@ void renderer_free_texture(Renderer& renderer, int texture) {
         return;
     }
     vk.freed_textures.push_back(vk.textures[static_cast<std::size_t>(texture)]);
+    vk_stream_forget(vk, VK_NULL_HANDLE, vk.freed_textures.back().image);
     vk.textures[static_cast<std::size_t>(texture)] = {};
     vk.free_textures.push_back(texture);
 }
@@ -188,22 +186,20 @@ bool renderer_update_mesh(Renderer& renderer, int mesh, const std::vector<MeshVe
     if (size == 0 || size > target.size) {
         return false;
     }
-    GpuBuffer staging;
-    if (!vk_create_buffer(
-            vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging)) {
+    // through the frame's ring, copied by the next frame's commands (vk_stream.cpp)
+    if (vk_stream_buffer(vk, target.buffer, vertices.data(), size)) {
+        return true;
+    }
+    VkBuffer staging = VK_NULL_HANDLE;
+    VkDeviceSize staged = 0;
+    if (!vk_upload_bytes(vk, vertices.data(), size, staging, staged)) {
         return false;
     }
-    void* mapped = nullptr;
-    vkMapMemory(vk.device, staging.memory, 0, size, 0, &mapped);
-    std::memcpy(mapped, vertices.data(), size);
-    vkUnmapMemory(vk.device, staging.memory);
     // recorded with the pending uploads, which run after the frame in flight is done and before
     // the next one draws (vk_flush_uploads)
     VkCommandBuffer command = vk_upload_command(vk);
-    VkBufferCopy copy{0, 0, size};
-    vkCmdCopyBuffer(command, staging.buffer, target.buffer, 1, &copy);
-    vk_upload_keep(vk, staging);
+    VkBufferCopy copy{staged, 0, size};
+    vkCmdCopyBuffer(command, staging, target.buffer, 1, &copy);
     return true;
 }
 
@@ -232,37 +228,30 @@ int renderer_upload_texture(Renderer& renderer, int width, int height,
                          VK_IMAGE_ASPECT_COLOR_BIT, image)) {
         return -1;
     }
-    GpuBuffer staging;
-    if (!vk_create_buffer(
-            vk, packed.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging)) {
+    VkBuffer staging = VK_NULL_HANDLE;
+    VkDeviceSize staged = 0;
+    if (!vk_upload_bytes(vk, packed.data(), packed.size(), staging, staged)) {
         vk_destroy_image(vk, image);
         return -1;
     }
-    void* mapped = nullptr;
-    vkMapMemory(vk.device, staging.memory, 0, packed.size(), 0, &mapped);
-    std::memcpy(mapped, packed.data(), packed.size());
-    vkUnmapMemory(vk.device, staging.memory);
     VkCommandBuffer command = vk_upload_command(vk);
     vk_barrier(command, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, level_count);
     std::vector<VkBufferImageCopy> copies;
     for (int level = 0; level < level_count; ++level) {
         VkBufferImageCopy copy{};
-        copy.bufferOffset = offsets[level];
+        copy.bufferOffset = staged + offsets[level];
         copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, static_cast<std::uint32_t>(level), 0,
                                  1};
         copy.imageExtent = {static_cast<std::uint32_t>(sizes[level].first),
                             static_cast<std::uint32_t>(sizes[level].second), 1};
         copies.push_back(copy);
     }
-    vkCmdCopyBufferToImage(command, staging.buffer, image.image,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    vkCmdCopyBufferToImage(command, staging, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                            static_cast<std::uint32_t>(copies.size()), copies.data());
     vk_barrier(command, image.image, VK_IMAGE_ASPECT_COLOR_BIT,
                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                level_count);
-    vk_upload_keep(vk, staging);
     return keep(vk.textures, vk.free_textures, vk.texture_owner, vk.owner, image);
 }
 
@@ -300,27 +289,23 @@ int renderer_upload_blocks(Renderer& renderer, BlockFormat format, int width, in
                          VK_IMAGE_ASPECT_COLOR_BIT, image)) {
         return -1;
     }
-    GpuBuffer staging;
-    if (!vk_create_buffer(
-            vk, at, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging)) {
+    VkBuffer staging = VK_NULL_HANDLE;
+    VkDeviceSize staged = 0;
+    if (!vk_upload_bytes(vk, blocks, at, staging, staged)) {
         vk_destroy_image(vk, image);
         return -1;
     }
-    void* mapped = nullptr;
-    vkMapMemory(vk.device, staging.memory, 0, at, 0, &mapped);
-    std::memcpy(mapped, blocks, at);
-    vkUnmapMemory(vk.device, staging.memory);
     VkCommandBuffer command = vk_upload_command(vk);
     vk_barrier(command, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, levels);
-    vkCmdCopyBufferToImage(command, staging.buffer, image.image,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    for (VkBufferImageCopy& copy : copies) {
+        copy.bufferOffset += staged;
+    }
+    vkCmdCopyBufferToImage(command, staging, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                            static_cast<std::uint32_t>(copies.size()), copies.data());
     vk_barrier(command, image.image, VK_IMAGE_ASPECT_COLOR_BIT,
                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                levels);
-    vk_upload_keep(vk, staging);
     return keep(vk.textures, vk.free_textures, vk.texture_owner, vk.owner, image);
 }
 
@@ -333,24 +318,23 @@ namespace {
 bool copy_pixels(RendererState& vk, const GpuImage& image, VkImageLayout from,
                  const std::vector<std::uint8_t>& rgba) {
     const VkDeviceSize size = static_cast<VkDeviceSize>(image.width) * image.height * 4;
-    GpuBuffer staging;
-    if (rgba.size() < size ||
-        !vk_create_mapped_buffer(vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, staging)) {
+    VkBuffer staging = VK_NULL_HANDLE;
+    VkDeviceSize staged = 0;
+    if (rgba.size() < size || !vk_upload_bytes(vk, rgba.data(), size, staging, staged)) {
         return false;
     }
-    std::memcpy(staging.mapped, rgba.data(), size);
     VkCommandBuffer command = vk_upload_command(vk);
     vk_barrier(command, image.image, VK_IMAGE_ASPECT_COLOR_BIT, from,
                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     VkBufferImageCopy copy{};
+    copy.bufferOffset = staged;
     copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
     copy.imageExtent = {static_cast<std::uint32_t>(image.width),
                         static_cast<std::uint32_t>(image.height), 1};
-    vkCmdCopyBufferToImage(command, staging.buffer, image.image,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+    vkCmdCopyBufferToImage(command, staging, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                           &copy);
     vk_barrier(command, image.image, VK_IMAGE_ASPECT_COLOR_BIT,
                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    vk_upload_keep(vk, staging);
     return true;
 }
 
@@ -378,6 +362,11 @@ bool renderer_update_sprite_texture(Renderer& renderer, int texture,
     RendererState& vk = *renderer.vk;
     if (texture < 0 || texture >= static_cast<int>(vk.textures.size())) {
         return false;
+    }
+    const GpuImage& image = vk.textures[static_cast<std::size_t>(texture)];
+    if (rgba.size() >= static_cast<std::size_t>(image.width) * image.height * 4 &&
+        vk_stream_image(vk, image, rgba.data())) {
+        return true;
     }
     return copy_pixels(vk, vk.textures[static_cast<std::size_t>(texture)],
                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, rgba);
@@ -413,7 +402,7 @@ VkSampler vk_sampler(RendererState& vk, Address u, Address v, bool point) {
 }
 
 VkDescriptorSet vk_texture_set(RendererState& vk, const StageTexture* stages) {
-    std::vector<int> key(8);
+    std::array<int, 8> key;
     for (int s = 0; s < 4; ++s) {
         key[s * 2] = stages[s].texture;
         key[s * 2 + 1] = (static_cast<int>(stages[s].u) * 3 + static_cast<int>(stages[s].v)) * 2 +
@@ -489,5 +478,6 @@ VkDescriptorSet vk_texture_set(RendererState& vk, const StageTexture* stages) {
     }
     vkUpdateDescriptorSets(vk.device, 4, writes, 0, nullptr);
     vk.texture_sets[key] = set;
+    perf_set_made();
     return set;
 }

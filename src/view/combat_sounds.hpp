@@ -26,6 +26,10 @@ struct WeaponSound {
 struct CombatSounds {
     WeaponSound weapons[fighter_slots][4];
     std::uint32_t crt = 1; // rand_float_crt's coin for the casings, off the world
+    // per fighter, the last world step a melee impact still continues the blade's contact (its
+    // last impact's step plus a blade pass), so a blade that stays in a wall or a fighter sounds
+    // its hit once, not on every pass (docs/bugs.md)
+    std::int64_t melee_contact_until[fighter_slots] = {};
 };
 
 // after each world step: the step's weapon sounds

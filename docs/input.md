@@ -196,7 +196,7 @@ fighter whose `controller` is that seat, and in VS its panel, view, HUD and win 
   (Escape, Backspace, B, Back) leaves (`seat_leave`), freeing the panel and the device, so they can come back on another
   device. A pad pulled on the join page drops its player, as retail. The press a device joins with is ignored until it
   is let go (`VsPanel::wait_release`), so joining never also starts the match.
-- `seats_sync` runs every update before the pads are read (`main.cpp`, both loops and the VS round): four lobby players
+- `seats_sync` runs every update before the pads are read (`src/front_end_steps.cpp`, the viewer's loop and the VS round): four lobby players
   while split, so lobby player i is seat i, one alone; each player's device assignments toggled to match the seats (a
   hot-plugged pad that gubsy hands to its primary player is taken back on its `SDL_EVENT_GAMEPAD_ADDED`, in the same
   pump, so no read ever sees it on player 1; the reads came after a `seats_sync` before this too, and the pads' presses
@@ -204,7 +204,8 @@ fighter whose `controller` is that seat, and in VS its panel, view, HUD and win 
   settings profile and its own binds profile (id 1 + seat) once PC CONFIG's BINDINGS has made one, else player 1's
   ("Keyboard, mouse and pad" binds both kinds of device).
 - The mouse belongs to the seat holding the keyboard (`mouse_seat`); `read_pads` aims only for a player with the mouse
-  device, so no other seat reads it. Relative mouse mode is on through a battle (the cursor is captured) and off in menus.
+  device, so no other seat reads it. Relative mouse mode is on through a battle (the cursor is captured) and off in menus
+  and while a fight is paused (owner, 2026-11-13: the pause let go of the mouse).
 - `seat_aim_rates` fills each seat's `AimRates` from the fighter whose `controller` is that seat (zero for a seat with
   none). A fighter whose controller is outside 0..3 reads a pad at rest (`step_world`), never another seat's.
 - At spawn (`battle_spawn`) a human's seat is its roster entry's `player`: that is its `controller`, its gate is
@@ -225,6 +226,14 @@ and the mouse's x turns the whole mech, the legs, at the mech's own turn rate, e
 under Standard; the mouse's y pitches, up as up. There is no twist under Standard (`aim_yaw` stays 0), so the reticle
 is always straight ahead of the legs. Under Preferred the mouse's x twists the upper body within 45 degrees and A / D
 turn the legs. The original's BUTTON CONFIG screen (key config, state 0x10) switches it.
+
+PC: the control type's bit 2, `control_type_no_flick` (port-only), turns off Standard's double flick step: PC CONFIG,
+INPUT, DOUBLE TAP STEP OFF (docs/settings.md). It is not part of `button_control_type`, which the Xbox save's check
+compares (src/save/xbox_save.cpp). Each seat's setting (`phantomcrash.input.double_tap_step` in its settings profile) is
+put in the world before a battle starts (`pc_controls_commit`, `World::player_controls[seat]`; the campaign's fight, each
+VS round and the viewer), and `battle_spawn` ORs the bit into the human's control type beside the button config's, so the
+world hash, replays and the bug reports' fight records carry it as setup; `control_route` skips `step_flick` under it.
+The step buttons (Q and E, white and black) step either way. Default ON, as retail.
 
 Checked 2026-11-11: `docs/sixty.md`'s movement scripts (`captures/movement/legs.txt`, `jump_held.txt`,
 `walk_run_jump.txt` with builds 0, 37 and 72 on Shinjuku, and the held jump on the test arena) with `--trace 1`, before
@@ -323,16 +332,16 @@ Keyboard and mouse, every fight control in the left hand's reach or on the mouse
 | Space | A | jump (menus: accept) |
 | Q / E | white / black | step left / right |
 | C | X | camouflage |
-| left / right mouse | right / left trigger | fire arm A / arm B |
+| left / right mouse | left / right trigger | fire the left arm (arm B) / the right arm (arm A) |
 | mouse side buttons (forward / back), R / F | B / Y | fire back A / back B |
 | mouse | (aim) | upper body and pitch |
 | middle mouse, Z | right thumb | recentre |
 | wheel, 3 / 4 | d-pad up / down | view nearer / farther |
 | 1 / 2, Tab | d-pad left / right | cycle the outside views |
 | X | thumbs and triggers | race through conversation text (the original's chord) |
-| Enter | Start | pause (menus: accept) |
+| Enter | Start | pause (menus: accept; name entry: end the entry) |
 | Escape | Back; Start in a fight | menus: cancel; in a fight pause (`ReadOptions::fight`, devices.cpp); in a conversation skip it, held or with Shift skip its chain |
-| Backspace | Back | menus: cancel |
+| Backspace | Back | menus: cancel; name entry: delete the last letter ("Name entry") |
 | arrows, Page Up / Down | d-pad, triggers | menus, page tabs |
 | V / B | (PC: TURN STAND LEFT / RIGHT) | menus: turn the machine on a garage stand; a left drag on the stand does too |
 
@@ -362,6 +371,59 @@ BUTTON CONFIG setting.
   `menu_input_mark` only when the step isn't 0 and the screen gave a sound; the screen does both. `menu_accept_pressed`
   and friends don't mark (the per-pad `pad_accept_pressed` does; no screen uses it).
 - `menu_list_move`: the scrolling list (0xDF630).
+
+## Name entry
+
+The name entry (state 0x16: the pilot's name, a garage's, a Chip's, a playlist's) takes the keyboard as typing
+(port-only, src/screens/title/name_entry_keys.cpp), ahead of the bindings while its input runs (step 2):
+
+- A typed character goes straight into the name, where the cursor is or not: SDL's text input (on while the screen is
+  up) gives the character, and the grid's cell that shows it gives the glyph. ASCII is looked up as its full-width form
+  (the grid's letters and digits are full-width; `!?&@<>{}~` are on the symbols page), `-` as ー, `.` as ・, `( [` as 〔,
+  `) ]` as 〕, `*` as ★; a space is Y's blank (glyph 0). A garage's name has no symbols page, so only letters, digits and
+  the space. A character no cell shows is dropped; none goes past the eighth letter (the grid's accept overwrites the
+  eighth, retail's, but a typed run doesn't).
+- Backspace deletes the last letter, as the pad's X does (`se_name_entry_backspace`). Retail's B (Back) turns to the
+  END page (`name_entry_screen_input` 0x2CCA1, `input_cancel_pressed`), so Backspace no longer reads as Back here: a
+  PC rule. Escape still does (the END page, as B).
+- Enter (and the keypad's) ends the entry as the END tab's accept would (`name_entry_accept`, the empty name's box
+  included), wherever the cursor is.
+- The keys that type (letters, digits, space, punctuation) never reach the bindings there, so WASD doesn't walk the
+  cursor and Space doesn't accept a cell. The arrows, Page Up / Down and the mouse still walk the grid and pick cells.
+  Every pad button is retail's.
+
+`PHANTOMCRASH_TEXT="F:text,..."` (port-only, src/input/virtual_pads.cpp) types `text` at frame F as SDL's text event,
+for headless captures.
+
+## Mouse in menus
+
+The original's menus are pad-only. The mouse drives the same cursor the pad does (`screens/ui/menu_pointer.*`, the helpers
+in `screens/flow/front_end.hpp`), with the same rules on every screen:
+
+- Entering an item selects it, with the screen's cursor sound (`menu_cursor` given the items' rectangles; a scrolling list
+  through `menu_list_pointer`). Only entering another item counts, so the keys, the pad or the wheel can move the cursor
+  off the item the pointer rests on. A click selects the item it lands on as well.
+- A left click on the selected item accepts it (`menu_accept(ui, &rects[cursor])`). A click beside the items does nothing;
+  a box with only OK, a "press start" and a conversation take a click anywhere.
+- A right click is Back (`menu_cancel`).
+- The wheel is the d-pad's up and down (the profiles bind it so), so it steps the vertical lists as the d-pad does. A
+  horizontal menu, a wheel of items or a carousel steps on it too (`menu_wheel`: away from the player the previous item),
+  and a value row steps its value.
+- A click on a side card, a side item of a wheel or an arrow steps one place towards it: the Chip carousel, the hub wheels
+  (garage, Plus Tech, Wild Machines, Club Wired: `menu_wheel_pick` turns the pointer back about the wheel's pivot onto the
+  lit item's quad), the dealer's and Wild Machines' hangar wheels, the lists' scroll arrows, Sonic Amp's, the media
+  catalogue's and the schedule's page arrows. A wheel of items never turns on hovering: its items move under the pointer.
+- The mouse buttons press the triggers through the bindings (they fire the arms in a fight). The screens that turn pages
+  on the triggers (Sonic Amp's chart, the media catalogue, the schedule, name entry) read the pad through
+  `menu_pad_unclicked`, so a click is not a page turn.
+- The stands' drag (`stand_turn.cpp`) takes a press only inside the step's stand area, kept clear of its menus' hit boxes
+  (`stand_area_set`; the dealer's submenu and hangar wheel too).
+- Hit boxes are the items' sprites at their layout places in the 640x480 screen (`sprite_rect`); a wide window moves them
+  with their art (`pointer_inside`, `anchor_rect`).
+
+Headless: `--hover U:X:Y`, `--click U:X:Y` and `--drag U:X:Y:X2:Y2` by front end update, `PHANTOMCRASH_MOUSE_WHEEL="F:N"`
+(N notches, away positive) and `PHANTOMCRASH_MOUSE_CLICK="F:B"` (button B, 3 the right) by frame. The captures of each
+screen are in the main checkout's `captures/mouse/`.
 
 ## 60 Hz
 
@@ -425,9 +487,14 @@ actor.bindings, {actor.control_type, actor.airborne, blocked}, actor.flick)`, wi
 control_bindings_from_keys(seat_keys)` and `actor.control_type = button_control_type(seat_buttons)` at spawn
 (`default_key_block` and 0 for the AI and the lessons); `blocked` once a VS round is decided.
 
-Escape is the pad's Back (menu cancel) in menus and Start in a fight (`ReadOptions::fight`, set by the stage viewer's
-loop in `main.cpp`); the window's close button quits. Relative mouse mode (`SDL_SetWindowRelativeMouseMode`) is on in a fight and off in menus;
-`mouse_captured` follows it.
+Escape is the pad's Back (menu cancel) in menus and Start in a fight (`ReadOptions::fight`, set by the front end's
+steps in `src/front_end_steps.cpp` and the stage viewer's loop), but Back again while the pause's settings panel is up
+(docs/settings.md, "From the pause"); the window's close button quits. Relative mouse mode
+(`SDL_SetWindowRelativeMouseMode`) is on in a played fight and off in menus and in any fight's pause, its panels
+included (`pause_input` in `src/front_end_steps.cpp`): the cursor shows once it moves, clicks the pause's items and can
+leave the window, and `mouse_captured` follows it, so nothing moved while paused aims. On resuming the mouse is taken
+back with the counts moved meanwhile and the aim still owed dropped (`InputDevices::mouse_x/y`, `owed_twist`,
+`owed_pitch`), so the view doesn't jump.
 
 ## Open
 

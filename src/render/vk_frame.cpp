@@ -1,6 +1,8 @@
 #include "render/vk_internal.hpp"
 #include "render/vk_sprites.hpp"
 
+#include "perf_log.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -170,6 +172,35 @@ void record_late(RendererState& vk, const FrameSetup& setup, const FrameDraws& d
     vkCmdEndRenderPass(vk.command);
 }
 
+// the last frame's timestamps (its fence done) as the GPU's pass times, for the run log
+void read_timestamps(RendererState& vk) {
+    if (!vk.timestamps || !vk.timestamps_written) {
+        return;
+    }
+    vk.timestamps_written = false;
+    std::uint64_t ticks[timestamp_count];
+    if (vkGetQueryPoolResults(vk.device, vk.timestamps, 0, timestamp_count, sizeof ticks, ticks,
+                              sizeof ticks[0], VK_QUERY_RESULT_64_BIT) != VK_SUCCESS) {
+        return;
+    }
+    float ms[static_cast<int>(GpuPass::count)];
+    for (std::uint32_t i = 0; i + 1 < timestamp_count; ++i) {
+        const std::uint64_t ticks_between = (ticks[i + 1] - ticks[i]) & vk.timestamp_mask;
+        ms[i] = static_cast<float>(static_cast<double>(ticks_between) * vk.timestamp_period * 1e-6);
+    }
+    perf_gpu(ms);
+}
+
+// a timestamp at the end of what came before (the start at the top of the pipe)
+void timestamp(RendererState& vk, std::uint32_t index) {
+    if (vk.timestamps) {
+        vkCmdWriteTimestamp(vk.command,
+                            index == 0 ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+                                       : VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                            vk.timestamps, index);
+    }
+}
+
 } // namespace
 
 float renderer_depth_probe(Renderer& renderer, float x, float y) {
@@ -198,16 +229,26 @@ float renderer_scene_aspect(const Renderer& renderer, const float viewport[4]) {
 bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
                          const FrameDraws& draws, const std::string& capture_path) {
     RendererState& vk = *renderer.vk;
+    const std::uint64_t frame_start = perf_now();
     FrameSetup setup = adjusted_setup(vk, original_setup);
     setup.screen_shift[0] = static_cast<float>(renderer.screen_shift[0]);
     setup.screen_shift[1] = static_cast<float>(renderer.screen_shift[1]);
     vk.screen_shift[0] = setup.screen_shift[0];
     vk.screen_shift[1] = setup.screen_shift[1];
     // one frame in flight: the last one done before this one's buffers and commands are written
-    vkWaitForFences(vk.device, 1, &vk.fence, VK_TRUE, UINT64_MAX);
+    // (a lost device ends the run)
+    std::uint64_t blocked = perf_now();
+    if (!vk_check(vkWaitForFences(vk.device, 1, &vk.fence, VK_TRUE, UINT64_MAX), "wait frame")) {
+        return false;
+    }
+    blocked = perf_now() - blocked;
+    perf_add(PerfPart::fence, blocked);
+    read_timestamps(vk);
+    const std::uint64_t uploads_start = perf_now();
     if (!vk_flush_uploads(vk) || !vk_fit_window(vk, renderer)) {
         return false;
     }
+    blocked += perf_now() - uploads_start; // counted as uploads, or a resize
     vk_release_freed(vk);
     // the last frame's depth probe (24-bit unorm in the low bits, or a float)
     if (vk.probe_recorded && vk.probe.mapped) {
@@ -232,7 +273,8 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
     frame.pixel[0] = 0.5f;
     std::memcpy(vk.frame_uniform.mapped, &frame, sizeof frame);
     const std::uint32_t align = static_cast<std::uint32_t>(vk.uniform_alignment);
-    std::vector<std::uint32_t> offsets(draws.items.size());
+    std::vector<std::uint32_t>& offsets = vk.frame_offsets;
+    offsets.assign(draws.items.size(), 0);
     std::uint32_t cursor = 0;
     for (std::size_t i = 0; i < draws.items.size(); ++i) {
         const DrawItem& item = draws.items[i];
@@ -251,8 +293,10 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
     }
 
     // pipelines and texture sets made before recording (both cached)
-    std::vector<VkPipeline> pipelines(draws.items.size());
-    std::vector<VkDescriptorSet> sets(draws.items.size());
+    std::vector<VkPipeline>& pipelines = vk.frame_pipelines;
+    std::vector<VkDescriptorSet>& sets = vk.frame_sets;
+    pipelines.assign(draws.items.size(), VK_NULL_HANDLE);
+    sets.assign(draws.items.size(), VK_NULL_HANDLE);
     for (std::size_t i = 0; i < draws.items.size(); ++i) {
         if (draws.items[i].program != Program::shadow_quad) {
             pipelines[i] = vk_pipeline_for(vk, key_of(draws.items[i]));
@@ -261,16 +305,28 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
     }
 
     std::uint32_t image_index = 0;
+    const std::uint64_t acquire_start = perf_now();
     VkResult acquired = vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vk.acquired,
                                               VK_NULL_HANDLE, &image_index);
+    const std::uint64_t acquire_time = perf_now() - acquire_start;
+    perf_add(PerfPart::acquire, acquire_time);
+    blocked += acquire_time;
     if (acquired == VK_ERROR_OUT_OF_DATE_KHR) {
         vk.swap_stale = true;
         return true;
+    }
+    if (acquired != VK_SUCCESS && acquired != VK_SUBOPTIMAL_KHR) {
+        return vk_check(acquired, "acquire");
     }
     vkResetFences(vk.device, 1, &vk.fence);
     vkResetCommandBuffer(vk.command, 0);
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     vkBeginCommandBuffer(vk.command, &begin);
+    if (vk.timestamps) {
+        vkCmdResetQueryPool(vk.command, vk.timestamps, 0, timestamp_count);
+    }
+    timestamp(vk, 0);
+    vk_record_stream(vk, vk.command);
     vk_write_dynamic_textures(vk, vk.command, setup);
 
     // the scene: cleared to clear_color, depth 1, stencil 0 (render_frame_open)
@@ -399,6 +455,7 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
         vk.probe_recorded = true;
         vk.probe_at[0] = -1;
     }
+    timestamp(vk, 1);
 
     // the pass 11 composite into the final target (a frame with 3D only), then the gamma ramp
     // into the output. The port's post pass (FXAA, BRIGHTNESS) takes the 3D first when asked:
@@ -416,6 +473,7 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
                     [](const DrawItem& item) { return item.cockpit; })) {
         record_late(vk, setup, draws, pipelines, sets, offsets, true, post);
     }
+    timestamp(vk, 2);
     if (post) {
         vk_record_post(vk, vk.command, cursor);
     }
@@ -428,8 +486,10 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
         record_late(vk, setup, draws, pipelines, sets, offsets, false);
         vk_sprites_record(vk, SpriteLayer::Over14);
     }
+    timestamp(vk, 3);
     vk_record_capture(vk, vk.command);
     vk_record_gamma(vk, vk.command, cursor);
+    timestamp(vk, 4);
 
     // the output to the window, scaled to the swapchain's size
     vk_barrier(vk.command, vk.output.image, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -450,7 +510,10 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
                    same_size ? VK_FILTER_NEAREST : VK_FILTER_LINEAR);
     vk_barrier(vk.command, swap_image, VK_IMAGE_ASPECT_COLOR_BIT,
                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    timestamp(vk, 5);
     vkEndCommandBuffer(vk.command);
+    const std::uint64_t present_start = perf_now();
+    perf_add(PerfPart::record, present_start - frame_start - blocked);
 
     VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
@@ -460,24 +523,30 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
     submit.commandBufferCount = 1;
     submit.pCommandBuffers = &vk.command;
     submit.signalSemaphoreCount = 1;
-    submit.pSignalSemaphores = &vk.finished;
+    submit.pSignalSemaphores = &vk.finished[image_index];
     if (!vk_check(vkQueueSubmit(vk.queue, 1, &submit, vk.fence), "submit frame")) {
         return false;
     }
+    vk.timestamps_written = vk.timestamps != VK_NULL_HANDLE;
     VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present.waitSemaphoreCount = 1;
-    present.pWaitSemaphores = &vk.finished;
+    present.pWaitSemaphores = &vk.finished[image_index];
     present.swapchainCount = 1;
     present.pSwapchains = &vk.swapchain;
     present.pImageIndices = &image_index;
     const VkResult presented = vkQueuePresentKHR(vk.queue, &present);
     if (presented == VK_ERROR_OUT_OF_DATE_KHR || presented == VK_SUBOPTIMAL_KHR) {
         vk.swap_stale = true;
+    } else if (presented == VK_ERROR_DEVICE_LOST) {
+        return vk_check(presented, "present");
     }
+    perf_add(PerfPart::present, perf_now() - present_start);
 
     if (!capture_path.empty()) {
-        vkWaitForFences(vk.device, 1, &vk.fence, VK_TRUE, UINT64_MAX);
-        if (!vk_save_capture(vk, capture_path)) {
+        const PerfScope timed(PerfPart::capture);
+        if (!vk_check(vkWaitForFences(vk.device, 1, &vk.fence, VK_TRUE, UINT64_MAX),
+                      "wait frame") ||
+            !vk_save_capture(vk, capture_path)) {
             return false;
         }
         std::printf("captured %s\n", capture_path.c_str());

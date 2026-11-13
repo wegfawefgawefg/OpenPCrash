@@ -75,7 +75,8 @@ void stage_animation_load(StageAnimation& animation, const StageInfo& info, cons
             // original multiplies the first four uvs by 1000 once, into the 640x480 linear
             // target's texel units; the port's scene texture takes 0..1: x 1000 / 640, / 480.
             // Shinjuku's screens run 0..0.64 by 0..0.52: the whole width, and 40 texels past the
-            // bottom, clamped (layer 0) to the last row
+            // bottom, clamped (layer 0) to the last row, the black margin under the title-safe
+            // rectangle the 3D is in (vk_record_scene_last)
             animated.mesh_flags = mesh_scene_texture;
             if (!animated.drawn.sections.empty()) {
                 animated.drawn.sections[0].flags |= 0x400; // the panel section

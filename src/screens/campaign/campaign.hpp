@@ -39,6 +39,7 @@ struct TownMapScreen {
     int banner_timer = -1;    // +0x2418
     int visit_spin = 0;       // +0x241C (no reader)
     float spin_sum = 0;       // +0x2420
+    bool spin_drag = false;   // PC: the left button grabbed the skater to spin him
     int result = 0;
 };
 
@@ -295,6 +296,8 @@ void battle_pause_toggle(FrontEnd& fe, Ui& ui, bool start_pressed);
 // VS's pause menu (pause_menu_update's VS arm): continue, or quit with its question, on every
 // entered seat's pad
 void vs_pause_step(FrontEnd& fe, Ui& ui);
+// pause_menu_update's mask: player 0's pad, or in VS every entered seat's at once
+PadRecord pause_pads(const FrontEnd& fe, const Ui& ui);
 // battle_letterbox_draw
 void letterbox_draw(Ui& ui, const BattleState& b);
 // the battle flow's sounds and music of the step just run (World::battle_state.events)

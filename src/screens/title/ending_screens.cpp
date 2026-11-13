@@ -16,6 +16,7 @@
 #include "input/menu_input.hpp"
 #include "screens/campaign/campaign.hpp"
 #include "screens/flow/front_end.hpp"
+#include "screens/pc/pause_settings.hpp"
 #include "story/roster_tables.hpp"
 #include "story/rumble.hpp"
 #include "talk/draw2d.hpp"
@@ -372,10 +373,20 @@ void free_play_step(FrontEnd& fe, Ui& ui) {
     Campaign& c = fe.campaign;
     if (c.paused && fe.screen.step < 3) {
         // pause_menu_update's free play arm: continue or quit on player 0's pad; accept always
-        // ends the pause, quit also sets phase 6 under the half-second fade (B does nothing)
-        PointerRect items[2] = {sprite_rect(ui, 0xe8f, 272, 226), sprite_rect(ui, 0xe90, 272, 248)};
-        menu_cursor(ui, c.pause_cursor, 0, 2, cursor_menu_vertical, 0, 3, items);
-        if (menu_accept(ui, &items[c.pause_cursor])) {
+        // ends the pause, quit also sets phase 6 under the half-second fade (B does nothing).
+        // The port's PC items follow (pause_settings.hpp)
+        PointerRect items[2 + pause_items_max] = {sprite_rect(ui, 0xe8f, 272, 226),
+                                                  sprite_rect(ui, 0xe90, 272, 248)};
+        const int count = 2 + pause_items_count();
+        for (int i = 2; i < count; ++i) {
+            items[i] = pause_item_rect(i - 2, true);
+        }
+        menu_cursor(ui, c.pause_cursor, 0, count, cursor_menu_vertical, 0, 3, items);
+        if (c.pause_cursor >= 2) {
+            if (pause_item_accepted(ui, items[c.pause_cursor])) {
+                pause_item_open(fe, ui, c.pause_cursor - 2);
+            }
+        } else if (menu_accept(ui, &items[c.pause_cursor])) {
             ui_sound(ui, bank_sys, se_menu_accept);
             ui_sound(ui, bank_sys, se_pause); // pause_leave
             if (c.pause_cursor == 1) {

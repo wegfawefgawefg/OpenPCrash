@@ -53,6 +53,10 @@ struct Options {
     // (input/dev_route.hpp, docs/playthrough.md)
     std::string route;
     int follow = -1;
+    // --pose FILE (dev, the site's posed shots): the viewer's scene from a file
+    // (src/viewer_pose.hpp); it fills `seats`, each viewer slot's pad seat (-1 an AI)
+    std::string pose;
+    std::vector<int> seats;
     float ai_reach = 0;
     int trace_ai = 0;
     int day = 0;            // --day N: the game day the stage lighting cycles by
@@ -60,6 +64,10 @@ struct Options {
     // --pose-compare: the build's fixed-point pose against the float walk over its clips, printed
     // (src/mech/pose_compare.cpp), then quit
     bool pose_compare = false;
+    // --dance FILE (with --camera): slot 0's build dancing alone, no stage, over black or
+    // (--dance-white) white, for difference-matted captures (src/mech/dance_pose.hpp)
+    std::string dance;
+    bool dance_white = false;
     // the conversation debug player (src/talk/talk_player.cpp): --talk talk_5b | 0x5b | bark_...
     std::string talk;
     int talk_press = 0;  // --talk-press N: press accept every N frames (captures)

@@ -2,11 +2,11 @@
 // dealer_logo_trail_step, the machine card and buttons dealer_machine_card_draw, the price
 // dealer_price_draw, the profile panel dealer_profile_panel_draw in src/hand/hud_draw_o1.c, the
 // machine submenu dealer_machine_menu_draw, the garage wheel dealer_garage_list_draw).
+#include "render/vk_sprites.hpp"
 #include "screens/flow/front_end.hpp"
 #include "talk/draw2d.hpp"
 #include "world/world.hpp"
 
-#include <cstdlib>
 
 namespace {
 
@@ -42,24 +42,44 @@ void trail_step(DealerScreen& d) {
     }
 }
 
-// the backdrop: the dealer's four-image loop scrolling left at half brightness
+// the backdrop: the dealer's four-image loop (one 2120-texel panorama whose ends meet) scrolling
+// left at half brightness; retail's three images from the frame's on, and in a wide window the
+// loop run on to the window's edges, the images before and after them (anchored free)
 void backdrop_draw(Ui& ui, DealerScreen& d) {
     const std::vector<double> strips = ui_values(ui.data, dl, "dealer_backdrop_strips", 18);
+    // image k of the loop from the frame's (the table repeats frames 0 and 1 after 3)
     const auto strip = [&](int k) {
-        const std::size_t at = static_cast<std::size_t>(d.dealer * 6 + d.frame + k);
+        const std::size_t at = static_cast<std::size_t>(d.dealer * 6 + ((d.frame + k) % 4 + 4) % 4);
         return at < strips.size() ? static_cast<int>(strips[at]) : -1;
     };
-    float x = d.scroll;
-    for (int k = 0; k < 3; ++k) {
+    const auto width = [&](int k) { return static_cast<float>(sprite_width(ui, strip(k))); };
+    const auto image = [&](int k, float x) {
         Sprite s = at(ui, strip(k), x, 0.0f, 1);
         s.color = 0xff808080;
         sprite_submit(ui, s);
-        x += static_cast<float>(sprite_width(ui, strip(k)));
+    };
+    float x = d.scroll;
+    for (int k = 0; k < 3; ++k) {
+        image(k, x);
+        x += width(k);
     }
+    // the window's reach past the title-safe edges (none at 4:3, where retail's three cover it)
+    const float reach =
+        ui.renderer ? sprite_frame_reach(renderer_sprite_frame(*ui.renderer, -1)) : 0.0f;
+    for (int k = 3; x < 608.0f + reach && width(k) > 0.0f; ++k) {
+        image(k, x);
+        x += width(k);
+    }
+    x = d.scroll;
+    for (int k = -1; x > 32.0f - reach && width(k) > 0.0f; --k) {
+        x -= width(k);
+        image(k, x);
+    }
+    // the next image takes over once it reaches x 0; retail waits until abs((int)scroll) passes
+    // the width, one update later, so the loop stepped back half a pixel there (docs/bugs.md)
     d.scroll -= 0.5f;
-    if (static_cast<float>(std::abs(static_cast<int>(d.scroll))) >
-        static_cast<float>(sprite_width(ui, strip(0)))) {
-        d.scroll = 0.0f;
+    if (d.scroll <= -width(0) && width(0) > 0.0f) {
+        d.scroll += width(0);
         if (++d.frame > 3) {
             d.frame = 0;
         }
@@ -162,7 +182,10 @@ int dealer_price(FrontEnd& fe, const DealerScreen& d, int i) {
     }
     // price_with_tax: (int)((float)total * 1.1f), floor(total * 11 / 10) for every total
     const ShopBuild& b = fe.shop.tables.builds[static_cast<std::size_t>(d.machines[i])];
-    return static_cast<int>(static_cast<float>(shop_scoobee_total(fe.shop.tables, b)) * 1.1f);
+    // SHOP PRICES (PC CONFIG's CHEATS) divides it
+    return cheat_shop_price(
+        fe.world->story.cheats,
+        static_cast<int>(static_cast<float>(shop_scoobee_total(fe.shop.tables, b)) * 1.1f));
 }
 
 // decomp: dealer_screen_draw 0x39DC6

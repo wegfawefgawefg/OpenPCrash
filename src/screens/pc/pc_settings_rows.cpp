@@ -1,6 +1,7 @@
 // PC CONFIG's rows (docs/settings.md): every page but BINDINGS, a row per setting, what it shows
 // and what left, right and accept do to it.
 #include "input/bindings.hpp"
+#include "report/reports.hpp"
 #include "screens/pc/pc_settings_screen.hpp"
 
 #include <algorithm>
@@ -27,6 +28,7 @@ enum RowId {
     row_brightness,
     row_flashes,
     row_shake,
+    row_fov,
     row_filter,
     row_soft,
     row_master,
@@ -35,6 +37,8 @@ enum RowId {
     row_mute,
     row_mouse_speed,
     row_mouse_y,
+    row_air_turn,
+    row_double_tap,
     row_left_zone,
     row_right_zone,
     row_outer_zone,
@@ -43,6 +47,10 @@ enum RowId {
     row_story,
     row_chatter,
     row_pause,
+    row_reports,
+    row_report_bug,
+    row_music_panel,
+    row_cheats,
     row_default,
 };
 
@@ -58,7 +66,8 @@ constexpr RowText row_text[] = {
      "The window's size, or the screen's in fullscreen. Borderless is the desktop's."},
     {"REFRESH RATE", "How many times a second the screen redraws. FULLSCREEN picks it."},
     {"VSYNC", "Wait for the screen: no tearing, a little more lag."},
-    {"FRAME LIMIT", "At most this many frames a second. The game runs at 60 whatever it draws."},
+    {"FRAME LIMIT",
+     "At most this many frames a second. MAX: up to 500 in a fight, the screen's rate in menus."},
     {"SHOW FRAME RATE", "The frames drawn each second, in the top right corner."},
     {"HUD WIDTH", "How far the HUD and the menus' side pieces reach into a wide window. 0 keeps "
                   "the 4:3 middle."},
@@ -72,6 +81,8 @@ constexpr RowText row_text[] = {
     {"FLASHES",
      "How bright blasts and shots light the scene, the sun's flare and a hit's flicker."},
     {"CAMERA SHAKE", "How hard the cockpit view shakes when hit. 100 is the original, 0 none."},
+    {"FIELD OF VIEW",
+     "How wide the fight camera sees, in degrees across a 16:9 screen. 82 is the original."},
     {"TEXTURE FILTER", "How sharp the ground and walls stay in the distance."},
     {"SOFT FOCUS", "The original's soft, hazy battle picture. OFF draws it sharp."},
     {"MASTER VOLUME", "Everything together. BGM and SE are the original's, in SOUND CONFIG."},
@@ -80,6 +91,10 @@ constexpr RowText row_text[] = {
     {"MUTE IN BACKGROUND", "Silent while another window has the keyboard."},
     {"MOUSE SPEED", "How far the upper body turns for a move of the mouse."},
     {"MOUSE UP DOWN", "REVERSE looks down when the mouse goes up."},
+    {"AIR TURN",
+     "MOUSE: in the air the mouse alone turns you, not A and D. KEYS: they turn you too."},
+    {"DOUBLE TAP STEP", "Under STANDARD, a double flick of the stick (A or D twice) steps. OFF: "
+                        "only the step buttons (Q and E) do."},
     {"LEFT DEAD ZONE",
      "How far the left stick moves before it counts. 50 is the original's; less suits newer pads."},
     {"RIGHT DEAD ZONE", "How far the right stick moves before it counts. 50 is the original's; "
@@ -93,18 +108,30 @@ constexpr RowText row_text[] = {
     {"STORY TALK", "SKIP: the story's conversations never show. The story goes on the same."},
     {"BATTLE CHATTER", "SKIP: the pilots' lines during fights never show."},
     {"PAUSE IN BACKGROUND", "A fight stops while another window has the keyboard."},
+    {"CRASH REPORTS", "SEND: a crash, a hang or a failed start sends the log's end, the build, the "
+                      "system, the GPU, the settings and the fight's inputs. No names."},
+    {"REPORT A BUG", "Tell the developer what went wrong, with the log's end and the build."},
+    {"MUSIC", "The fights' music: the song playing, the mode, and the playlists."},
+    {"CHEATS", "Money, songs, paints, garages, days and cheaper prices. A game that uses them "
+               "says so in its save."},
     {"DEFAULT", "Put this page back as it was."},
 };
 
 constexpr RowId screen_rows[] = {row_mode,      row_resolution, row_refresh,
                                  row_vsync,     row_frame_cap,  row_show_fps,
                                  row_hud_width, row_hud_size,   row_default};
-constexpr RowId picture_rows[] = {row_scale,   row_antialias, row_aspect, row_safe, row_brightness,
-                                  row_flashes, row_shake,     row_filter, row_soft, row_default};
-constexpr RowId sound_rows[] = {row_master, row_music, row_effects, row_mute, row_default};
-constexpr RowId input_rows[] = {row_mouse_speed, row_mouse_y,   row_left_zone, row_right_zone,
-                                row_outer_zone,  row_calibrate, row_vibration, row_default};
-constexpr RowId game_rows[] = {row_story, row_chatter, row_pause, row_default};
+constexpr RowId picture_rows[] = {row_scale,      row_antialias, row_aspect, row_safe,
+                                  row_brightness, row_flashes,   row_shake,  row_fov,
+                                  row_filter,     row_soft,      row_default};
+constexpr RowId sound_rows[] = {row_master, row_music,       row_effects,
+                                row_mute,   row_music_panel, row_default};
+constexpr RowId input_rows[] = {row_mouse_speed, row_mouse_y,    row_air_turn,   row_double_tap,
+                                row_left_zone,   row_right_zone, row_outer_zone, row_calibrate,
+                                row_vibration,   row_default};
+constexpr RowId game_rows[] = {row_story,      row_chatter, row_pause,  row_reports,
+                               row_report_bug, row_cheats,  row_default};
+// without a report address built in, no report rows (src/report/reports.hpp)
+constexpr RowId game_rows_plain[] = {row_story, row_chatter, row_pause, row_cheats, row_default};
 
 constexpr int frame_caps[] = {0, 30, 60, 75, 90, 120, 144, 165, 240};
 constexpr int render_scales[] = {50, 75, 100, 125, 150, 175, 200};
@@ -127,7 +154,11 @@ bool row_of(int page, int row, RowId& out) {
         rows = input_rows, count = static_cast<int>(std::size(input_rows));
         break;
     case page_game:
-        rows = game_rows, count = static_cast<int>(std::size(game_rows));
+        if (reports_available()) {
+            rows = game_rows, count = static_cast<int>(std::size(game_rows));
+        } else {
+            rows = game_rows_plain, count = static_cast<int>(std::size(game_rows_plain));
+        }
         break;
     default:
         return false;
@@ -204,6 +235,7 @@ void page_defaults(PcSettings& s, int page) {
         break;
     case page_input:
         s.mouse_sensitivity = d.mouse_sensitivity, s.invert_y = d.invert_y;
+        s.air_turn_mouse = d.air_turn_mouse, s.double_tap_step = d.double_tap_step;
         s.left_dead_zone = d.left_dead_zone, s.right_dead_zone = d.right_dead_zone;
         s.outer_dead_zone = d.outer_dead_zone;
         s.vibration_strength = d.vibration_strength;
@@ -263,7 +295,7 @@ PcRowView pc_row_view(const PcHost& host, int page, int row) {
         view.value = on_off(s.render.vsync);
         break;
     case row_frame_cap:
-        view.value = s.frame_cap > 0 ? number(s.frame_cap) : "OFF";
+        view.value = s.frame_cap > 0 ? number(s.frame_cap) : "MAX";
         break;
     case row_show_fps:
         view.value = on_off(s.show_fps);
@@ -299,6 +331,10 @@ PcRowView pc_row_view(const PcHost& host, int page, int row) {
         view.value = number(s.render.camera_shake);
         view.bar = s.render.camera_shake;
         break;
+    case row_fov:
+        view.value = number(s.render.fov);
+        view.bar = (s.render.fov - 82) * 100 / 48;
+        break;
     case row_filter:
         view.value =
             s.render.anisotropy > 1 ? "ANISOTROPIC " + number(s.render.anisotropy) : "TRILINEAR";
@@ -327,6 +363,12 @@ PcRowView pc_row_view(const PcHost& host, int page, int row) {
     case row_mouse_y:
         view.value = s.invert_y ? "REVERSE" : "NORMAL";
         break;
+    case row_air_turn:
+        view.value = s.air_turn_mouse ? "MOUSE" : "KEYS";
+        break;
+    case row_double_tap:
+        view.value = on_off(s.double_tap_step);
+        break;
     case row_left_zone:
         view.value = number(s.left_dead_zone);
         break;
@@ -352,7 +394,16 @@ PcRowView pc_row_view(const PcHost& host, int page, int row) {
     case row_pause:
         view.value = on_off(s.focus_pause);
         break;
+    case row_reports:
+        view.value = report_consent() == ReportConsent::yes ? "SEND" : "OFF";
+        break;
+    case row_report_bug:
     case row_default:
+        view.arrows = false;
+        break;
+    case row_music_panel:
+    case row_cheats:
+        view.value = "OPEN";
         view.arrows = false;
         break;
     }
@@ -422,6 +473,9 @@ bool pc_row_step(PcHost& host, int page, int row, int step) {
     case row_shake:
         s.render.camera_shake = step_range(s.render.camera_shake, step, 10, 0, 100);
         break;
+    case row_fov:
+        s.render.fov = step_range(s.render.fov, step, 2, 82, 130);
+        break;
     case row_filter:
         s.render.anisotropy = step_in(anisotropies, s.render.anisotropy, step);
         break;
@@ -446,6 +500,12 @@ bool pc_row_step(PcHost& host, int page, int row, int step) {
     case row_mouse_y:
         s.invert_y = !s.invert_y;
         break;
+    case row_air_turn:
+        s.air_turn_mouse = !s.air_turn_mouse;
+        break;
+    case row_double_tap:
+        s.double_tap_step = !s.double_tap_step;
+        break;
     case row_left_zone:
         s.left_dead_zone = step_range(s.left_dead_zone, step, 5, dead_zone_min, dead_zone_max);
         break;
@@ -469,6 +529,14 @@ bool pc_row_step(PcHost& host, int page, int row, int step) {
     case row_pause:
         s.focus_pause = !s.focus_pause;
         break;
+    case row_reports:
+        // kept beside the reports, not in gubsy's settings (src/report/reports.hpp)
+        report_consent_set(report_consent() != ReportConsent::yes);
+        return true;
+    case row_report_bug:
+    case row_music_panel:
+    case row_cheats:
+        return false;
     case row_default:
         return false;
     }
@@ -484,6 +552,45 @@ bool pc_row_step(PcHost& host, int page, int row, int step) {
 bool pc_row_is_calibrate(int page, int row) {
     RowId id;
     return row_of(page, row, id) && id == row_calibrate;
+}
+
+bool pc_row_next_fight(int page, int row) {
+    RowId id;
+    // the fight's views are laid out at its start, and its fighters' controls set at their spawn
+    return row_of(page, row, id) && (id == row_safe || id == row_double_tap);
+}
+
+bool pc_row_is_report(int page, int row) {
+    RowId id;
+    return row_of(page, row, id) && id == row_report_bug;
+}
+
+bool pc_row_is_music(int page, int row) {
+    RowId id;
+    return row_of(page, row, id) && id == row_music_panel;
+}
+
+bool pc_row_is_cheats(int page, int row) {
+    RowId id;
+    return row_of(page, row, id) && id == row_cheats;
+}
+
+int pc_cheats_row() {
+    for (int row = 0; row < pc_rows_count(page_game); ++row) {
+        if (pc_row_is_cheats(page_game, row)) {
+            return row;
+        }
+    }
+    return 0;
+}
+
+int pc_music_row() {
+    for (int row = 0; row < static_cast<int>(std::size(sound_rows)); ++row) {
+        if (sound_rows[row] == row_music_panel) {
+            return row;
+        }
+    }
+    return 0;
 }
 
 bool pc_row_accept(PcHost& host, int page, int row) {

@@ -5,9 +5,11 @@
 // setting `result` (task_header_set), and the state's update turns the answer into the next state
 // (menu_set_state), which kills the screen, runs app_transition_resolve (so conversations ride on
 // state changes) and enters the new state on the next update. State numbers are the original's.
+#include "input/menu_input.hpp" // menu_cursor's flags
 #include "movie/movie.hpp"
 #include "movie/movie_screens.hpp"
 #include "screens/flow/screens.hpp"
+#include "screens/pc/report_panel.hpp"
 #include "screens/shops/music_player.hpp"
 #include "screens/ui/ui.hpp"
 #include "screens/vs/vs_setup.hpp"
@@ -77,6 +79,9 @@ struct FrontEnd {
     // the PC's settings (main's) and the letters PC CONFIG cuts from the original's art
     PcHost* pc = nullptr;
     PcArt pc_art;
+    ReportPanel report; // the bug reports' panel over any screen
+    // PC CONFIG open over a paused fight (screens/pc/pause_settings.hpp), on screen.pc
+    bool pause_settings = false;
 };
 
 bool init_front_end(FrontEnd& fe, Ui& ui, World& world, MachineOptions& machine,
@@ -141,3 +146,17 @@ bool menu_cancel(Ui& ui);
 // rects[i] moves the cursor to lo + i with the same sound. Returns the step.
 int menu_cursor(Ui& ui, int& value, int lo, int count, unsigned flags, int bank, int cue,
                 const PointerRect* rects = nullptr);
+// PC: the pad for a screen that turns pages on the triggers: the mouse's buttons press them
+// through the bindings (they fire the arms in a fight), so while a click lands or the left
+// button is held they are taken off, and a click is not a page turn (name_entry.cpp does the same)
+PadRecord menu_pad_unclicked(const Ui& ui);
+// PC: the wheel on a cursor the d-pad's up and down don't move (a horizontal menu, a wheel of
+// items): away from the player -1, towards +1, wrapping or stopping at the ends, with the screen's
+// sound (none for bank -1). Returns the step.
+int menu_wheel(Ui& ui, int& value, int lo, int count, bool wrap, int bank, int cue);
+// PC: the pointer on a scrolling list (menu_list_move's cursor and scroll): entering row i's
+// rectangle lights it, a click on `up` or `down` (null for none) steps the cursor as the d-pad
+// does, scrolling at the edge. Returns the step; the screen plays its sound and marks its input
+// time as it does for the pad.
+int menu_list_pointer(Ui& ui, int& cursor, int& scroll, int total, int rows, unsigned flags,
+                      const PointerRect* row_rects, const PointerRect* up, const PointerRect* down);

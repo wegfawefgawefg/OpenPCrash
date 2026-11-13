@@ -43,6 +43,7 @@ struct StandTables {
 // one load at a time: open on the main thread, read on a worker, upload when it's done
 struct StandJob {
     std::string key;
+    std::uint64_t started = 0; // when it was asked for (the run log's load line)
     std::unique_ptr<MechParts> mech;
     MechLoad load;
     std::future<bool> read; // last, so it is waited for before the rest goes

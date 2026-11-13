@@ -6,6 +6,8 @@
 #include "screens/flow/front_end.hpp"
 #include "world/world.hpp"
 
+#include <cmath>
+
 namespace {
 
 enum Step {
@@ -94,13 +96,16 @@ void view_draw(FrontEnd& fe, Ui& ui, PlusTechScreen& p, int step) {
     }
 }
 
+// a sprite of the wheel's items (their pivot)
+int plus_tech_menu_item(Ui& ui) {
+    return static_cast<int>(ui_values(ui.data, "plus_tech", "plus_tech_menu_items", 3)[0]);
+}
+
 // step3: the hub
 void hub_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p) {
     if (!p.turning) {
-        menu_cursor(ui, p.menu, 0, 3, 0x17, -1, -1);
-        if (ui.pointer.wheel != 0) {
-            p.menu = (p.menu + (ui.pointer.wheel > 0 ? 2 : 1)) % 3;
-            menu_input_mark(ui);
+        if (menu_cursor(ui, p.menu, 0, 3, 0x17, -1, -1) == 0) {
+            menu_wheel_pointer(ui, p.menu, 3, plus_tech_menu_item(ui));
         }
     }
     if (p.menu != p.menu_before && !p.turning) {
@@ -114,9 +119,8 @@ void hub_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p) {
         p.menu_before = p.menu;
     }
     plus_tech_menu_draw(fe, ui, p);
-    const std::vector<double> lit = ui_values(ui.data, "plus_tech", "plus_tech_menu_lit", 3);
-    const PointerRect rect = menu_wheel_rect(ui, static_cast<int>(lit[static_cast<std::size_t>(p.menu)]));
-    if (menu_accept(ui, &rect)) {
+    const int item = plus_tech_menu_item(ui);
+    if (menu_accept_pressed(ui.pad) || (ui.pointer.left && menu_wheel_pick(ui, item) == 0)) {
         fade_out_start(ui, half(ui));
         if (p.menu == 2) {
             ui_sound(ui, bank_sys, se_shop_leave);
@@ -238,10 +242,11 @@ void list_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p) {
     for (int i = 0; i < 4; ++i) {
         rows[i] = {43, 220.0f + 38.0f * i, 340, 258.0f + 38.0f * i};
     }
-    const int hover = ui.pointer.moved ? pointer_pick(ui.pointer, rows, count < 4 ? count : 4) : -1;
-    if (hover >= 0 && hover != p.cursor_row) {
-        p.cursor_row = hover;
-        moved = 1;
+    const PointerRect up = sprite_rect(ui, 0x464, 184, 212),
+                      down = sprite_rect(ui, 0x463, 184, 371);
+    if (moved == 0) {
+        moved = menu_list_pointer(ui, p.cursor_row, p.scroll_row, count, 4, 0x12, rows,
+                                  count > 4 ? &up : nullptr, count > 4 ? &down : nullptr);
     }
     if (moved) {
         ui_sound(ui, bank_sys, se_menu_cursor_vertical);
@@ -282,13 +287,19 @@ void list_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p) {
 
 void tune_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p) {
     menu_cursor(ui, p.tune, -99, 199, 0x13, 0, 4);
-    if (ui.pointer.wheel != 0) {
-        const int to = std::min(99, std::max(-99, p.tune + ui.pointer.wheel));
-        if (to != p.tune) {
-            p.tune = to;
-            ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
-            menu_input_mark(ui);
-        }
+    // PC: the wheel steps the level, a click or a drag on the gauge puts it under the pointer
+    int to = std::min(99, std::max(-99, p.tune + ui.pointer.wheel));
+    const PointerRect gauge = {96, 286, 310, 336};
+    p.gauge_drag =
+        (p.gauge_drag && ui.pointer.held) || (ui.pointer.left && pointer_inside(ui.pointer, gauge));
+    if (p.gauge_drag) {
+        to = std::min(99, std::max(-99, static_cast<int>(std::lround(ui.pointer.x - 207.0f))));
+        ui.pointer.left = false;
+    }
+    if (to != p.tune) {
+        p.tune = to;
+        ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
+        menu_input_mark(ui);
     }
     view_draw(fe, ui, p, step_tune);
     text_strip_draw_scroll(ui, p.help, 0xfff2e8e8);
@@ -298,7 +309,10 @@ void tune_step(FrontEnd& fe, Ui& ui, PlusTechScreen& p) {
         if (!e || p.tune == p.tune_was) {
             return;
         }
-        p.price = part_tune_price(fe.shop.tables, p.kind, e->id, p.tune_was, p.tune);
+        // TUNE PRICES (PC CONFIG's CHEATS) divides it; RETAIL leaves it
+        p.price =
+            cheat_tune_price(fe.world->story.cheats,
+                             part_tune_price(fe.shop.tables, p.kind, e->id, p.tune_was, p.tune));
         ui_sound(ui, bank_sys, se_menu_accept);
         if (fe.world->story.money < p.price) {
             message(p, 0);

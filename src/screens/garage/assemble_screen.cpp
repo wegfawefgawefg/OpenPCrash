@@ -109,20 +109,15 @@ void grid_step(FrontEnd& fe, Ui& ui, AssembleScreen& s) {
     // list_cursor_page_move(pad, &column, &row, 2, 12): rows wrap (sound 3), columns (sound 4)
     menu_cursor(ui, s.row, 0, 2, 0x16, 0, 3);
     menu_cursor(ui, s.column, 0, 6, 0x17, 0, 4);
-    if (ui.pointer.moved && ui.pointer.visible) {
-        for (int row = 0; row < 2; ++row) {
-            for (int column = 0; column < 6; ++column) {
-                if ((row != s.row || column != s.column) &&
-                    pointer_inside(ui.pointer, assemble_cell_rect(ui, s, row, column))) {
-                    ui_sound(ui, bank_sys,
-                             column != s.column ? se_menu_cursor_horizontal
-                                                : se_menu_cursor_vertical);
-                    menu_input_mark(ui);
-                    s.row = row;
-                    s.column = column;
-                }
-            }
-        }
+    // the pointer lights the cell it enters
+    PointerRect cells[12];
+    for (int i = 0; i < 12; ++i) {
+        cells[i] = assemble_cell_rect(ui, s, i / 6, i % 6);
+    }
+    int lit = s.row * 6 + s.column;
+    if (menu_cursor(ui, lit, 0, 12, cursor_no_dpad, bank_sys, se_menu_cursor_horizontal, cells)) {
+        s.row = lit / 6;
+        s.column = lit % 6;
     }
     e.category = assemble_category(s.column, s.row);
     if (w.garages.selected == e.garage && (e.status & garage_part_missing)) {
@@ -224,8 +219,12 @@ void list_step(FrontEnd& fe, Ui& ui, AssembleScreen& s) {
         rows[i] = assemble_row_rect(i);
     }
     const int hover = pointer_pick(ui.pointer, rows, visible);
-    if (ui.pointer.moved && hover >= 0 && hover != e.cursor && !s.dragging) {
-        e.cursor = hover;
+    // entering a row lights it, the arrows scroll
+    const PointerRect up = sprite_rect(ui, 0x3cb, 184, 136),
+                      down = sprite_rect(ui, 0x3ca, 184, 371);
+    if (!moved && !s.dragging &&
+        menu_list_pointer(ui, e.cursor, e.scroll, count, 6, 0x12, rows, count > 6 ? &up : nullptr,
+                          count > 6 ? &down : nullptr) != 0) {
         ui_sound(ui, bank_sys, se_menu_cursor_vertical);
         menu_input_mark(ui);
     }

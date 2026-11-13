@@ -25,8 +25,10 @@ struct CarouselCard {
 void carousel_draw(Ui& ui, const PartTables& t, const CarouselLook& look, ChipStrip& c,
                    const std::vector<CarouselCard>& cards, bool input, bool pulse);
 // the cursor (0x13 stopping at the ends, or 0x17 wrapping round the ring), the slide and the
-// leave line (0x12); the pointer clicks a side card to step towards it. Returns the card step.
-int carousel_input(Ui& ui, ChipStrip& c, int count, bool ring);
+// leave line (0x12). The pointer: entering the cards or `leave_rect` moves the line there, a
+// click on a side card or its arrow or a wheel notch steps the cards. Returns the card step (2
+// when the line moved).
+int carousel_input(Ui& ui, ChipStrip& c, int count, bool ring, const PointerRect& leave_rect);
 // the Uplift card: the Chip at its level on the left, the new level's reticle boxes, crit and
 // shield on the right, the gauge, the levels and the cost
 void uplift_card_draw(Ui& ui, const PartTables& t, const ChipStrip& c, int part, int tune_left,

@@ -2,6 +2,7 @@
 
 #include "build_info.hpp"
 #include "game_paths.hpp"
+#include "report/reports.hpp"
 #include "setup/setup_draw.hpp"
 #include "setup/setup_job.hpp"
 
@@ -18,7 +19,7 @@
 
 namespace {
 
-enum class Action { browse, folder, quit, cancel };
+enum class Action { browse, folder, quit, cancel, yes, no };
 
 struct Button {
     Action action;
@@ -56,6 +57,8 @@ struct Screen {
     bool hovering = false; // a file dragged over the window
     std::string note;      // a line under the buttons (a dialog that couldn't open, a stop)
     int done_frames = 0;
+    // the data ready, the bug reports' question before the game (src/report/reports.hpp)
+    bool asking = false;
 };
 
 bool working(const Screen& screen) {
@@ -67,7 +70,10 @@ bool working(const Screen& screen) {
 void lay_out_buttons(Screen& screen) {
     const bool busy = working(screen) || screen.job.stage.load() == SetupStage::done;
     std::vector<Button> buttons;
-    if (busy) {
+    if (screen.asking) {
+        buttons.push_back({Action::yes, "YES", {362, 664, 260, 66}});
+        buttons.push_back({Action::no, "NO", {658, 664, 260, 66}});
+    } else if (busy) {
         if (screen.job.stage.load() != SetupStage::done) {
             buttons.push_back({Action::cancel, "CANCEL", {510, 664, 260, 66}});
         }
@@ -114,6 +120,11 @@ bool press(Screen& screen, Action action) {
         return false;
     case Action::quit:
         return true;
+    case Action::yes:
+    case Action::no:
+        report_consent_set(action == Action::yes);
+        screen.asking = false;
+        return false;
     }
     return false;
 }
@@ -142,7 +153,17 @@ void draw(Screen& screen) {
               1190, 150, setup_white, 1);
     const SetupStage stage = screen.job.stage.load();
     const SDL_FRect panel{184, 236, 912, 390};
-    if (working(screen) || stage == SetupStage::done) {
+    if (screen.asking) {
+        // asked once: off until the player says yes
+        fill_round_rect(art, panel, 18, {2, 8, 30, 230});
+        draw_text(art, SetupFont::heading, "Ready. One question first:", 640, 270, setup_white);
+        draw_text(art, SetupFont::heading, "Send crash reports to help fix bugs?", 640, 350,
+                  setup_yellow, 0, 800);
+        draw_text(art, SetupFont::body,
+                  "A report holds the end of the game's log, the build, your system and GPU, your "
+                  "settings and the fight's inputs. No names. PC CONFIG, GAME changes it.",
+                  640, 430, setup_grey, 0, 800);
+    } else if (working(screen) || stage == SetupStage::done) {
         // the work: what it's doing, the bar, the share done
         fill_round_rect(art, panel, 18, {2, 8, 30, 230});
         draw_text(art, SetupFont::heading,
@@ -334,7 +355,9 @@ int run_setup_screen(const Options& options) {
             if (count > 0 && move != 0) {
                 screen.focus = (screen.focus + move + count) % count;
             }
-            if (back) {
+            if (back && screen.asking) {
+                press(screen, Action::no); // Escape on the question: no
+            } else if (back) {
                 // Escape stops the work, else leaves
                 quit = working(screen) ? press(screen, Action::cancel) : true;
             } else if (pressed && screen.focus < count) {
@@ -357,8 +380,14 @@ int run_setup_screen(const Options& options) {
             }
         }
 
-        // the work done: a moment on "Ready", then the game
-        if (screen.job.stage.load() == SetupStage::done && ++screen.done_frames > 45) {
+        // the work done: the question if it is due, a moment on "Ready", then the game
+        if (screen.job.stage.load() == SetupStage::done && screen.done_frames == 0 &&
+            !screen.asking && reports_question_due()) {
+            screen.asking = true;
+            screen.focus = 0;
+        }
+        if (screen.job.stage.load() == SetupStage::done && !screen.asking &&
+            ++screen.done_frames > 45) {
             break;
         }
 

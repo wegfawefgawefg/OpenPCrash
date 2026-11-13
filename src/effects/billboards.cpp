@@ -2,6 +2,7 @@
 
 #include "effects/effects.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -24,34 +25,33 @@ Vec3f to_view(const Vec3f& world, const Mat4& view) {
     return transform_coord({world.x, world.y, -world.z}, view);
 }
 
+// a billboard's view z beside its index, so the sort reads its keys in a row
+struct DepthKey {
+    float z;
+    int index;
+};
+
 // a merge sort of indices by view z, farthest first; on a tie the right
 // half's goes first, as retail's merge takes it
 // decomp: billboards_sort 0xC03DD
-void sort_far_first(std::vector<int>& items, std::vector<int>& left,
-                    const std::vector<Billboard>& b, int first, int n) {
+void sort_far_first(DepthKey* items, DepthKey* left, int n) {
     if (n <= 1) {
         return;
     }
     const int half = n / 2;
-    sort_far_first(items, left, b, first, half);
-    sort_far_first(items, left, b, first + half, n - half);
-    for (int i = 0; i < half; ++i) {
-        left[static_cast<std::size_t>(i)] = items[static_cast<std::size_t>(first + i)];
-    }
+    sort_far_first(items, left, half);
+    sort_far_first(items + half, left, n - half);
+    std::copy(items, items + half, left);
     int l = 0, r = half, out = 0;
     while (l < half && r < n) {
-        const int li = left[static_cast<std::size_t>(l)];
-        const int ri = items[static_cast<std::size_t>(first + r)];
-        if (b[static_cast<std::size_t>(li)].pos[2] > b[static_cast<std::size_t>(ri)].pos[2]) {
-            items[static_cast<std::size_t>(first + out++)] = li;
-            ++l;
+        if (left[l].z > items[r].z) {
+            items[out++] = left[l++];
         } else {
-            items[static_cast<std::size_t>(first + out++)] = ri;
-            ++r;
+            items[out++] = items[r++];
         }
     }
     while (l < half) {
-        items[static_cast<std::size_t>(first + out++)] = left[static_cast<std::size_t>(l++)];
+        items[out++] = left[l++];
     }
 }
 
@@ -150,15 +150,15 @@ void billboards_prepare(const std::vector<BillboardPush>& pushes, float t, const
     all.insert(all.end(), copies.begin(), copies.end());
 
     // back to front; behind the camera dropped
-    std::vector<int> order(all.size()), scratch(all.size());
+    std::vector<DepthKey> order(all.size()), scratch(all.size());
     for (std::size_t i = 0; i < order.size(); ++i) {
-        order[i] = static_cast<int>(i);
+        order[i] = {all[i].pos[2], static_cast<int>(i)};
     }
-    sort_far_first(order, scratch, all, 0, static_cast<int>(order.size()));
+    sort_far_first(order.data(), scratch.data(), static_cast<int>(order.size()));
     out.reserve(all.size());
-    for (int index : order) {
-        if (all[static_cast<std::size_t>(index)].pos[2] >= 0) {
-            out.push_back(all[static_cast<std::size_t>(index)]);
+    for (const DepthKey& key : order) {
+        if (key.z >= 0) {
+            out.push_back(all[static_cast<std::size_t>(key.index)]);
         }
     }
 }

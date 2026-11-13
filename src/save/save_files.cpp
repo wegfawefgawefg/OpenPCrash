@@ -38,6 +38,7 @@ void story_copy_saved(const Story& from, Story& to) {
     }
     to.completed_cycles = from.completed_cycles;
     to.days_played = from.days_played;
+    to.cheats = from.cheats; // the port's (pc-rules)
     // retail leaves these two out (past +0x60C4); the port saves them (docs/bugs.md)
     to.rumble_selected = from.rumble_selected;
     to.map_spin_money = from.map_spin_money;

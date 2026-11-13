@@ -7,6 +7,7 @@
 // field changes it, and wants hashing before the size is updated
 #define PC_HASHED(T, size) static_assert(fighter_slots != 6 || sizeof(T) == (size), #T)
 PC_HASHED(BuildRecord, 104);
+PC_HASHED(CheatRules, 6);
 PC_HASHED(ButtonConfig, 44);
 PC_HASHED(EndingCarry, 32);
 PC_HASHED(GameOptions, 48);
@@ -25,7 +26,7 @@ PC_HASHED(RosterPilot, 28);
 PC_HASHED(RosterWeapon, 4);
 PC_HASHED(RumbleSlot, 5444);
 PC_HASHED(RumbleTicket, 20);
-PC_HASHED(Story, 2824);
+PC_HASHED(Story, 2832);
 #undef PC_HASHED
 
 void put(Hasher& h, const PoolProgress& p) {
@@ -34,9 +35,12 @@ void put(Hasher& h, const PoolProgress& p) {
 void put(Hasher& h, const EndingCarry& c) {
     put_all(h, c.carry, c.durability, c.resource, c.fitted, c.broken);
 }
+void put(Hasher& h, const CheatRules& c) {
+    put_all(h, c.cheated, c.infinite_money, c.tune_divisor, c.shop_divisor, c.money_won);
+}
 void put(Hasher& h, const Story& s) {
     put_all(h, s.pools, s.tournament_won, s.day, s.money, s.game_beaten, s.music_owned,
-            s.events_done, s.lineup, s.completed_cycles, s.days_played, s.map_spin_money,
+            s.events_done, s.lineup, s.completed_cycles, s.days_played, s.cheats, s.map_spin_money,
             s.rumble_selected, s.class_wins_at_entry, s.ranker_wins_at_entry, s.talk_src,
             s.talk_dst, s.ending_carry);
 }

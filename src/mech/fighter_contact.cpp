@@ -1,7 +1,7 @@
 // sv_contact_route and sv_motion_integrate (decomp src/od/u_07c740.c): the move
 // with gravity and the half-step correction, then the fighter's sphere against the supply craft
-// and its crates (pickup_collect_test) and the stage. Props and the contact decals (bit 0x2000)
-// aren't ported yet.
+// and its crates (pickup_collect_test), the stage and its props (stage_props_collide_sphere). The
+// contact decals (bit 0x2000) aren't ported yet.
 #include "mech/fighter.hpp"
 #include "mech/fighter_rates.hpp"
 #include "stage/stage_world.hpp"
@@ -108,9 +108,21 @@ void contact_route(Fighter& f, const BattleData& data, StageWorld* pickups) {
         }
     }
 
-    // a move through a wall throws the fighter back to where it was
+    // the props: the sphere, and in the air the upper one, unless dead
+    if (pickups && (f.grounded || f.motion_state != state_dead)) {
+        hits |= stage_props_collide_sphere(*pickups, stage, sphere);
+        if (!f.grounded) {
+            upper_hits |= stage_props_collide_sphere(*pickups, stage, upper);
+        }
+    }
+
+    // a move through a wall or into a prop throws the fighter back to where it was
     FxVec3 crossing;
     if (collision_segment_hit(stage, sphere.previous, sphere.centre, &crossing, false)) {
+        sphere.centre = sphere.previous;
+        hits |= contact_floor;
+    }
+    if (pickups && stage_props_block(*pickups, sphere.previous, sphere.centre)) {
         sphere.centre = sphere.previous;
         hits |= contact_floor;
     }

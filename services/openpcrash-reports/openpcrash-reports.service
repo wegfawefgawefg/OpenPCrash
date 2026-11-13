@@ -1,0 +1,26 @@
+[Unit]
+Description=OpenPCrash bug reports
+After=network.target
+[Service]
+DynamicUser=yes
+ExecStart=/usr/bin/python3 /opt/openpcrash-reports/server.py --dir /var/lib/openpcrash-reports --port 8796
+Restart=on-failure
+RestartSec=2
+StateDirectory=openpcrash-reports
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryMax=128M
+TasksMax=32
+[Install]
+WantedBy=multi-user.target

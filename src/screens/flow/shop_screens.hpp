@@ -19,12 +19,13 @@ struct ChipStrip {
 // plus_tech_* (0x1B), PlusTechScreen
 struct PlusTechScreen {
     int frames = 0;
+    bool gauge_drag = false; // PC: the level's gauge held under the pointer
     int menu = 0, menu_before = 0, menu_frames = 0;
     bool turning = false;
     int next = 0, view = 0;
     int banner = -1;
     TextStrip labels[3];
-    TextStrip help;  // the help line: a tab's, a part's blurb, a Chip's name, the levels
+    TextStrip help; // the help line: a tab's, a part's blurb, a Chip's name, the levels
     MsgBox boxes[10];
     int message = 0;
     int pick = 1;
@@ -53,8 +54,8 @@ struct WildScreen {
     int frames = 0;
     int menu = 0, menu_before = 0, menu_frames = 0;
     bool turning = false;
-    int mode = 0;  // 0 hub, 1 buy modules, 2 buy a Chip, 3 used, 4 sell modules, 5 sell Chips
-    int next = 0;  // the mode the fade goes to
+    int mode = 0; // 0 hub, 1 buy modules, 2 buy a Chip, 3 used, 4 sell modules, 5 sell Chips
+    int next = 0; // the mode the fade goes to
     int result = 0;
     int banner = -1;
     TextStrip labels[6];
@@ -67,10 +68,10 @@ struct WildScreen {
     Slide top, bottom;
     PopTimer timers[3];
     int header_x = -400, header_delay = 20;
-    float turn = 0;        // the three frames' rotation
-    float monitor = 0;     // the monitor strip's scroll
-    GaragePage stock;      // today's stock of the tab (buy)
-    GarageEditor editor;   // the owned pages (sell)
+    float turn = 0;      // the three frames' rotation
+    float monitor = 0;   // the monitor strip's scroll
+    GaragePage stock;    // today's stock of the tab (buy)
+    GarageEditor editor; // the owned pages (sell)
     int cursor = 0, scroll = 0;
     int price = 0;
     // Chips
@@ -79,7 +80,10 @@ struct WildScreen {
     int chip_slot = -1;
     // used Scoobees
     std::vector<UsedMachine> used;
-    int used_cursor = 0, used_x[7] = {}, submenu = 0, garage = 0;
+    int used_cursor = 0, used_x[7] = {}, submenu = 0;
+    // the garage wheel: the cursor's garage, the one it slides from, the slide's frame (8 at rest)
+    int garage = 0, garage_before = 0, garage_wait = 8;
+    int help_for = -1; // which used step's help line the strip holds
     bool used_sound_done = false;
 };
 

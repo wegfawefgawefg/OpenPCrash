@@ -4,14 +4,14 @@
 // the battle's copy of the selected playlist (Playlist at GameState +0x6124) and its
 // advance, the menus' shuffled pool, and Sonic Amp's stock. Presentation: everything here draws
 // from CRT rand (rand_crt), never the world's generator, as retail does.
+#include "world/game_state.hpp"
+
 #include <cstdint>
 #include <string>
 #include <vector>
 
 struct Ui;
 struct UiData;
-struct Story;
-struct Music;
 
 // MusicRecord (0x1AC bytes), tables/music.sexp
 struct MusicRecord {
@@ -45,10 +45,36 @@ struct MenuShuffle {
     int wait = 0;
 };
 
+// The PC's fight music (port-only, src/screens/shops/fight_music.cpp, docs/audio.md "Fight
+// music"): the mode a fight plays (the PC setting, src/screens/pc/pc_settings.hpp), ALL SONGS
+// SHUFFLE's deck, the songs played for BACK, ONE SONG REPEAT's song, and the playlists edited
+// over a fight's pause, kept here until the fight ends (the world's copy is part of its hash)
+enum FightMusicMode {
+    fight_music_default = -1, // ALL SONGS SHUFFLE past 12 owned songs, else PLAYLIST
+    fight_music_playlist,     // retail's: the selected media playlist
+    fight_music_shuffle,      // every owned song, shuffled, none again until all have played
+    fight_music_repeat,       // one song over and over
+    fight_music_modes
+};
+inline constexpr int fight_music_history = 32;
+
+struct FightMusic {
+    std::uint32_t seed = 1; // its own CRT-style generator: retail's CRT draws stay retail's
+    int deck[all_song_ids] = {};
+    int deck_size = 0, deck_at = 0;
+    int dealt_owned = -1; // the owned songs the deck was dealt from (a new one deals again)
+    int history[fight_music_history] = {}; // catalogue ids the fights played, newest last
+    int history_count = 0;
+    int repeat_id = -1; // ONE SONG REPEAT's song
+    bool lists_held = false;
+    Music lists; // the playlists edited in a fight, written to the world when it ends
+};
+
 struct MusicPlayer {
     std::vector<MusicRecord> catalogue;
     BattlePlaylist battle;
     MenuShuffle shuffle;
+    FightMusic fight;
     std::uint32_t crt = 1; // the CRT's seed: 1 until srand, which retail never calls
     int pumped_update = -1; // the front end update the pool last ran in
 };
@@ -77,8 +103,17 @@ void music_playlist_compact(MusicPlayer& music, const Story& story, const Music&
 void battle_playlist_reset(MusicPlayer& music, const Story& story, const Music& player_music);
 // music_playlist_advance: the next slot, -1 none
 int music_playlist_advance(MusicPlayer& music, const Music& player_music);
-// battle_music_update, every battle update: the 3 s gap, the tournament themes, the list
-void battle_music_update(MusicPlayer& music, Ui& ui, const Music& player_music, int tournament);
+// its pick from a roll 0..1: the next slot in order, or an unplayed one at random
+int music_playlist_slot(const BattlePlaylist& list, const Music& player_music, float roll);
+// battle_playlist_play: the slot's song, unlooped, marked played
+void battle_playlist_play(MusicPlayer& music, Ui& ui, int slot);
+// tournament_theme_play: the four tournaments' themes; false for any other tournament
+bool tournament_theme_play(Ui& ui, int tournament);
+bool tournament_has_theme(int tournament);
+// battle_music_update, every battle update: the 3 s gap, the tournament themes, the list; the
+// PC's other modes (FightMusicMode) pick from the owned songs instead of the list
+void battle_music_update(MusicPlayer& music, Ui& ui, const Story& story, const Music& player_music,
+                         int tournament, int mode);
 
 // music_shuffle_catalogue: sixteen songs dealt (Club Wired's entry deals again)
 void music_shuffle_catalogue(MusicPlayer& music);

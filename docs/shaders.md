@@ -198,6 +198,10 @@ These are the renderer's job; the shaders assume them.
   it last frame's scene: the composite first copies the scene's 640x480 screen into `scene_last` (`texture_scene_last`,
   `vk_record_scene_last`), black until a frame with 3D. Retail's screens (pass 8) would see this frame's passes 0..7
   so far, or last frame's whole scene when the backdrop took passes 0..4 (UNKNOWN which a running Xbox shows).
+  Retail's 0x223 holds the 3D in the title-safe rectangle (32, 16, 576x448) with black around it, and the screens'
+  uvs run 0..640 by 0..520 texels clamped, so they show the picture in a black frame, 56 rows of it at the bottom.
+  The port's stretched 3D (the safe-area option off) is copied into that rectangle of `scene_last`, the margins kept
+  black; a straight copy clamped the picture's last row down the bottom tenth instead (playtest 2026-11-13).
 - **Lens flare.** `lens_flare_occlusion_test` reads one depth texel on the CPU; use an occlusion query or a one-frame-late
   readback.
 - **Gamma.** The per-stage ramp as the last pass (gamma.frag), over everything including the HUD; the identity ramp

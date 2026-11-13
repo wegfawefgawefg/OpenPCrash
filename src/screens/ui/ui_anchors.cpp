@@ -167,7 +167,7 @@ PointerRect anchor_rect(const AnchorScreen* screen, const SpriteFrame& frame,
 }
 
 void anchors_apply(const AnchorScreen* screen, const Renderer& renderer, const Draw2D& in,
-                   Draw2D& out) {
+                   Draw2D& out, const AnchorScreen* panel) {
     out.quads.clear();
     out.quads.reserve(in.quads.size() + 64);
     SpriteFrame frames[5];
@@ -198,15 +198,24 @@ void anchors_apply(const AnchorScreen* screen, const Renderer& renderer, const D
         }
         const int view = q.view >= 0 && q.view < views ? q.view : -1;
         const SpriteFrame& f = frames[view + 1];
+        // a panel over the screen goes by its own rules (ui.hpp, Ui::panel)
+        const bool on_panel = (q.flags & quad_panel) != 0;
         const AnchorRule* rule = nullptr;
         const AnchorKind kind =
-            resolve(screen, q, view >= 0 ? renderer_sprite_view_rect(renderer, view) : nullptr,
-                    &rule);
-        if (hud_size != 100 && hud_piece(q, kind)) {
+            resolve(on_panel ? panel : screen, q,
+                    view >= 0 ? renderer_sprite_view_rect(renderer, view) : nullptr, &rule);
+        if (hud_size != 100 && !on_panel && hud_piece(q, kind)) {
             hud_scale(q, kind, static_cast<float>(hud_size) / 100.0f);
         }
         switch (kind) {
         case AnchorKind::centre:
+            // what lies wholly outside retail's title-safe area never showed; in a wide window
+            // the stretched viewport (spritemat's w - 1) would let its edge pixel through beside
+            // the box (the records' label at x 0..32 as a stray tick at 32)
+            if (view < 0 && f.spread > 0 && q.rot[2] == 0 &&
+                (q.x + q.w <= 32.0f || q.x >= 608.0f || q.y + q.h <= 16.0f || q.y >= 464.0f)) {
+                continue;
+            }
             q.anchor = anchor_centre;
             break;
         case AnchorKind::left:

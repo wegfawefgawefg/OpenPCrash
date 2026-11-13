@@ -75,13 +75,51 @@ What stays with the caller (presentation), because it's game flow and not engine
 - Which (bank, cue) an event plays: bank 3 for the human fighter, bank 1 (and 2) for AI, by `controller != -1`.
 - VS rules: mute banks 1 and 2, every 3D sound at (0, 0, 2), the listener pinned at the origin facing +z.
 - The listener update every other battle update, from the camera's eye and target.
-- Music choices: state music, the 3 s gap between battle tracks, the 5 s gap in the shuffled pool, the four tournament themes,
+- Music choices: state music, the 3 s gap between battle tracks (below, "Fight music"), the 5 s gap in the shuffled pool, the four tournament themes,
   `music_active` is `func_000DD210` for those waits. `music_playlist_advance`'s bias is a retail bug the port fixes
   (docs/bugs.md): pick uniformly among the unplayed tracks.
 - The pause: `pause_enter` plays sys 0xD and then pauses everything, so retail cuts the pause-in sound at once and plays it
   only on unpause (`pause_leave` plays it again). The port fixes that (docs/bugs.md): play 0xD after pausing the rest, so
   it is heard going in as well as coming out.
 - Stage ambience timers and the per-stage and Shibuya per-area reverb choice (`reverb.sexp`'s `stage-reverb` rows).
+
+## Fight music
+
+Retail's (decomp docs/port/audio.md "Battles"), in `src/screens/shops/music_player.cpp`: `battle_music_update` runs every
+update of the battle state's steps 2 and 3 (`battle_enter_next2`, `battle_enter_next3`), free play's (after its own
+`12SENTOU.WAV` once, `free_play_screen_step2`) and the replay's (`replay_spawn_begin_next2`), all in
+`src/screens/campaign/`; never the test drive's, which plays `12SENTOU.WAV` whenever nothing plays. When nothing plays a
+3 s countdown starts; at its end the four tournaments with a theme (14, 31, 48, 49) play it again, any other fight the
+next song of the battle's copy of the selected media playlist (`music_playlist_compact`): in order, wrapping to the top
+at the first empty slot, or at random among the unplayed. The copy is made by the media screen's destroy and a save's
+load, and keeps its place and played marks from fight to fight. Out of the box the selected playlist is song 77
+(`12SENTOU.WAV`, "Nuisance") and eleven empty slots, so a player who never builds a playlist hears that one song over
+and over with 3 s between: that is retail's, not a port bug.
+
+The port's bug (playtest 2026-11-13, "basically no music in the fights"): `battle_music_update` was written but never
+called, so a fight played only its entrance's `9PLAYIN.wav` (7.7 s) and was silent from there to the end. A headless
+tournament fight with all 78 songs owned and `PHANTOMCRASH_SOUND_TRACE=1` showed it: one music start at step 181 and
+none in the next 4000 steps. It is called now from the places above. Two more were missing beside it: the intro of a
+tournament with a theme played the boss track (6) in its place (`tournament_theme_play` 0x9E631 now plays the theme),
+and free play never started its `12SENTOU.WAV`.
+
+The PC's additions (`src/screens/shops/fight_music.cpp`, the MUSIC panel in docs/settings.md "Music"), presentation only:
+
+- MODE (`audio.fight_music`): PLAYLIST is retail's. ALL SONGS SHUFFLE deals every owned song into a shuffled deck and
+  plays it through, none twice until all have played, then deals again (the song just played not first; a song bought
+  since deals again at once). ONE SONG REPEAT plays one song (the one picked, or playing when the mode was set; else the
+  playlist's first) over and over. Both keep retail's 3 s gap between songs and unlooped play. Until set the mode is
+  ALL SONGS SHUFFLE once more than 12 songs are owned, else PLAYLIST.
+- NEXT plays the mode's next song at once (the playlist's next slot, the deck's next song, the next owned song for ONE
+  SONG REPEAT); BACK the song before (a history of the last 32 songs the fights played); a song picked plays at once.
+  In a paused fight the new song plays while the pause stays up.
+- The four themes, the test drive, free play, the intro and result music, the attract demo and the scenes are as
+  retail's: the modes only change which song the list's turn plays.
+- The draws come from `FightMusic`'s own generator (rand_crt's step, seeded from the clock once a session), never the
+  world's and never retail's CRT stream, which still draws only where retail draws (`music_playlist_advance` at a
+  song's end in PLAYLIST). A fight's world, record and hashes don't change with the mode, the panel or the songs.
+- `PHANTOMCRASH_SOUND_TRACE=1` logs every music start and stop with the step and the time (`music step N at T s start
+  TRACK FILE`), for the gaps.
 
 ## Data
 

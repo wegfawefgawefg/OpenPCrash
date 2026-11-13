@@ -128,7 +128,7 @@ void hud_meters_build(HudView& hud, const World& world) {
     const float glow = glow_alpha(camo);
     if (glow != 0.0f) {
         const auto a = static_cast<std::uint32_t>(std::clamp(glow, 0.0f, 1.0f) * 255.0f);
-        add(c, 0x4dd, mat_multiply(mat_scaling(1.5f, 1, 1), mat_translation(0, 0, 1)),
+        add(c, cockpit_glow_model, mat_multiply(mat_scaling(1.5f, 1, 1), mat_translation(0, 0, 1)),
             glow_colour | a << 24);
     }
 

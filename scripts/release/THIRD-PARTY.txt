@@ -17,8 +17,10 @@ Gubsy, GView, GLayout, gfxp, gsexp     GPLv3               https://github.com/we
   copy of Gubsy's GPLv3 text
 Jost (the setup screen's font)         SIL Open Font License 1.1
                                        https://github.com/indestructible-type/Jost
+LZ4 (packs a bug report's fight)       BSD 2-clause        https://github.com/lz4/lz4
 
 Windows only:
+libcurl (sends bug reports)            curl license (MIT-style)         https://curl.se
 LLVM libc++ and libunwind              Apache 2.0 with LLVM exception   https://llvm.org
 mingw-w64 runtime                      ZPL / public domain / MIT        https://www.mingw-w64.org
 
@@ -27,7 +29,8 @@ MoltenVK (libMoltenVK.dylib)           Apache 2.0          https://github.com/Kh
   with SPIRV-Cross and SPIRV-Tools (Apache 2.0) and cereal (BSD 3-clause)
 Vulkan Loader (libvulkan.1.dylib)      Apache 2.0          https://github.com/KhronosGroup/Vulkan-Loader
 
-Linux and Windows use the system's Vulkan loader.
+Linux and Windows use the system's Vulkan loader; Linux and the Mac the
+system's libcurl.
 
 Phantom Crash itself is not part of this download. OpenPCrash reads the
 player's own copy of the game, on the player's own computer.

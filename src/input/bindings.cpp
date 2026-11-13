@@ -118,9 +118,10 @@ void keyboard_layout(BindsProfile& p) {
     bind(p, B::KB_Q, A::White);
     bind(p, B::KB_E, A::Black);
     bind(p, B::KB_C, A::X);
-    // weapons: arms on the main mouse buttons, backs on the side buttons and R / F
-    bind(p, B::MOUSE_LEFT, A::RightTrigger);
-    bind(p, B::MOUSE_RIGHT, A::LeftTrigger);
+    // weapons: each main mouse button fires the arm on its side (the left trigger is the left
+    // arm, arm B; the right trigger the right arm, arm A), backs on the side buttons and R / F
+    bind(p, B::MOUSE_LEFT, A::LeftTrigger);
+    bind(p, B::MOUSE_RIGHT, A::RightTrigger);
     bind(p, B::MOUSE_X2, A::B);
     bind(p, B::MOUSE_X1, A::Y);
     bind(p, B::KB_R, A::B);
@@ -167,6 +168,22 @@ void steps_to_sides(BindsProfile& p) {
                               {B::KB_E, A::White, A::Black},
                               {B::GP_LEFT_SHOULDER, A::Black, A::White},
                               {B::GP_RIGHT_SHOULDER, A::White, A::Black}};
+    for (const Move& m : moves) {
+        if (ginput::remove_button_bind(p, {static_cast<int>(m.button), id(m.from)})) {
+            bind(p, m.button, m.to);
+        }
+    }
+}
+
+// the arms' old mouse defaults (left button on the right trigger, right button on the left) moved
+// to the arm on each button's side; other binds stay
+void arms_to_sides(BindsProfile& p) {
+    struct Move {
+        GubsyButton button;
+        PadAction from, to;
+    };
+    constexpr Move moves[] = {{B::MOUSE_LEFT, A::RightTrigger, A::LeftTrigger},
+                              {B::MOUSE_RIGHT, A::LeftTrigger, A::RightTrigger}};
     for (const Move& m : moves) {
         if (ginput::remove_button_bind(p, {static_cast<int>(m.button), id(m.from)})) {
             bind(p, m.button, m.to);
@@ -227,6 +244,28 @@ void register_settings(GubsyRuntime& runtime) {
     zone(outer_dead_zone_key, "Outer dead zone",
          "The end of each stick's travel that already counts as full. The original has none.", 0,
          outer_dead_zone_max, 0);
+    // a player's on (1, the default) or off (0)
+    const auto flag = [&schema](const char* key, const char* label, const char* text) {
+        SettingMetadata meta;
+        meta.scope = SettingScope::Profile;
+        meta.key = key;
+        meta.label = label;
+        meta.description = text;
+        meta.categories = {"Controls"};
+        meta.widget.kind = SettingWidgetKind::Slider;
+        meta.widget.min = 0.0f;
+        meta.widget.max = 1.0f;
+        meta.widget.step = 1.0f;
+        meta.widget.display_precision = 0;
+        meta.default_value = 1;
+        schema.add_setting(meta);
+    };
+    flag(air_turn_mouse_key, "Air turn",
+         "In the air with the mouse aiming: 1, the mouse alone turns the machine (A and D don't); "
+         "0, the keys turn it too.");
+    flag(double_tap_step_key, "Double tap step",
+         "Under Standard: 1, a double flick of the left stick (A or D tapped twice) steps, as the "
+         "original; 0, only the step buttons do.");
 
     // PC: conversations and battle barks shown or skipped (docs/story.md, "Skipping")
     const auto show_skip = [&schema](const char* key, const char* label, const char* text) {
@@ -343,6 +382,20 @@ void register_input(GubsyRuntime& runtime) {
             }
         }
         set_top_level_setting_int(top, steps_sided_key, 1);
+        (void)save_top_level_game_settings(top);
+    }
+    // and from before the mouse's arms were put right: each main button to its side's arm, once
+    // (arms_sided_key)
+    if (get_top_level_setting_int(top, arms_sided_key, 0) == 0) {
+        for (int i = 0; i < 4; ++i) {
+            const BindsProfile* own = gubsy_find_binds_profile(runtime, player_profile_first + i);
+            if (own) {
+                BindsProfile changed = *own;
+                arms_to_sides(changed);
+                (void)gubsy_replace_binds_profile(runtime, changed);
+            }
+        }
+        set_top_level_setting_int(top, arms_sided_key, 1);
         (void)save_top_level_game_settings(top);
     }
     register_settings(runtime);

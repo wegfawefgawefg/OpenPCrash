@@ -34,6 +34,10 @@ struct MenuPointer {
     bool pending_moved = false, pending_left = false, pending_right = false;
     bool pending_released = false;
     int pending_wheel = 0;
+    // the item hovering last picked, by its list: hovering selects only on entering another item,
+    // so the wheel or keys can move the cursor off the item the pointer rests on
+    const void* hover_list = nullptr;
+    int hover_item = -1;
     // the screen's widescreen anchors and frame (set each update): hit boxes move as their art
     const AnchorScreen* anchors = nullptr;
     SpriteFrame frame;

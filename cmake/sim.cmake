@@ -14,7 +14,7 @@ set(PHANTOMCRASH_SIM_SOURCES
     src/sim_main.cpp src/cli.cpp src/world/game_state.cpp
     src/cook/pack.cpp src/cook/pack_library.cpp src/cook/cook_plan.cpp src/cook/sexp_read.cpp
     src/cook/read_manifest.cpp src/cook/read_tables.cpp src/cook/read_fighters.cpp
-    src/cook/read_motion.cpp src/cook/data_hash.cpp)
+    src/cook/read_motion.cpp src/cook/data_hash.cpp src/report/report_fight.cpp)
 list(TRANSFORM PHANTOMCRASH_SIM_SOURCES PREPEND "${phantomcrash_sim_root}/")
 
 # a world of other than 6 fighters is a library of its own (the game's stays at 6)
@@ -25,8 +25,15 @@ if(PHANTOMCRASH_FIGHTER_SLOTS)
     phantomcrash_world_library(phantomcrash_world_sim ${PHANTOMCRASH_FIGHTER_SLOTS})
 endif()
 
+# LZ4 for a bug report's fight record (--replay FILE, src/report/report_fight.hpp)
+if(NOT TARGET phantomcrash_lz4)
+    add_library(phantomcrash_lz4 STATIC "${phantomcrash_sim_root}/third_party/lz4/lz4.c")
+    target_include_directories(phantomcrash_lz4 SYSTEM PUBLIC
+        "${phantomcrash_sim_root}/third_party/lz4")
+endif()
+
 add_executable(pc_sim ${PHANTOMCRASH_SIM_SOURCES})
-target_link_libraries(pc_sim PRIVATE ${phantomcrash_sim_world})
+target_link_libraries(pc_sim PRIVATE ${phantomcrash_sim_world} phantomcrash_lz4)
 target_compile_definitions(pc_sim PRIVATE PHANTOMCRASH_DATA_DIR="${PHANTOMCRASH_DATA_DIR}"
     PHANTOMCRASH_COOKED_DIR="${PHANTOMCRASH_COOKED_DIR}")
 if(NOT MSVC)

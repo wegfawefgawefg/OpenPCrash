@@ -4,7 +4,7 @@
 # and keeps the data made from the player's disc in the per-user folder (src/game_paths.hpp).
 
 # the game's version: bump it by hand
-set(PHANTOMCRASH_GAME_VERSION 0.1.0)
+set(PHANTOMCRASH_GAME_VERSION 0.2.0)
 set(PHANTOMCRASH_COMMIT "" CACHE STRING "The commit a release is built from")
 set(PHANTOMCRASH_BUILD_DATE "" CACHE STRING "The day a release is built")
 foreach(stamp PHANTOMCRASH_COMMIT PHANTOMCRASH_BUILD_DATE)

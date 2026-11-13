@@ -18,7 +18,7 @@ add_library(phantomcrash_renderer STATIC
     src/render/vk_device.cpp src/render/vk_target.cpp src/render/vk_pipeline.cpp src/render/vk_resources.cpp
     src/render/vk_frame.cpp src/render/vk_composite.cpp src/render/vk_sprites.cpp
     src/render/vk_sprite_pipeline.cpp
-    src/render/vk_backdrop.cpp)
+    src/render/vk_backdrop.cpp src/render/vk_stream.cpp src/perf_log.cpp)
 target_link_libraries(phantomcrash_renderer PUBLIC SDL3::SDL3 SDL3_image::SDL3_image Vulkan::Vulkan)
 target_include_directories(phantomcrash_renderer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(phantomcrash_renderer PRIVATE PHANTOMCRASH_SHADER_DIR="${CMAKE_CURRENT_BINARY_DIR}/shaders")

@@ -266,7 +266,10 @@ void stage_view_step(StageView& view, const StageWorld& world) {
     if (view.rotor_current < view.rotor_previous) {
         view.rotor_previous -= 6.2831855f;
     }
-    view.craft_state = craft.state;
+    // free play and the test drive never run supply_craft_update, which is also what draws the
+    // craft (stage_props_render 0x6F5ED skips it in menu states 0x2A and 0x2F): the craft rolled
+    // at their start stays unseen at its route's start
+    view.craft_state = world.setup.craft_frozen ? craft_off : craft.state;
     for (int i = 0; i < 3; ++i) {
         const Crate& crate = world.crates[i];
         const float at[3] = {fx_float(crate.pos.x), fx_float(crate.pos.y), fx_float(crate.pos.z)};

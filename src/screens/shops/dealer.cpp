@@ -340,6 +340,13 @@ void dealer_step(FrontEnd& fe, Ui& ui) {
     // the stand (dealer_shown_machine_update, dealer_model_slot_pick): the
     // cursor's machine slides in once loaded, the others out to the side
     if (fe.screen.step != step_load) {
+        // PC: the grab kept clear of the submenu and the hangar wheel, none under a box
+        const int step = fe.screen.step;
+        stand_area_set(fe.shop.stand, step == step_machine || step == step_wheel
+                                          ? PointerRect{460, 96, 640, 330}
+                                      : step == step_message || step == step_board
+                                          ? PointerRect{}
+                                          : PointerRect{340, 96, 640, 330});
         stand_line_follow(ui, fe.shop.stand, d.row);
         stand_update(ui, fe.shop.stand);
     }

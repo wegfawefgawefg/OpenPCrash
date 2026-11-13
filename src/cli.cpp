@@ -22,8 +22,9 @@ void print_usage() {
                  "             [--no-dialogue | --dialogue]\n"
                  "             [--opponents N,oN,...] [--ai-level L] [--demo] [--follow N]\n"
                  "             [--ai-reach R] [--trace-ai N] [--pose-compare] [--intro]\n"
-                 "             [--battle-script pad.txt] [--route route.txt]\n"
-                 "             [--seed N] [--vs N] [--hash N]\n");
+                 "             [--battle-script pad.txt] [--route route.txt] [--pose scene.txt]\n"
+                 "             [--seed N] [--vs N] [--hash N]\n"
+                 "             [--dance FILE [--dance-white]]\n");
 }
 
 // "U:a+start,U:0x110": a pad word by update
@@ -121,6 +122,10 @@ bool parse_cli(int argc, char** argv, Options& options) {
             options.viewer = true;
             continue;
         }
+        if (std::strcmp(arg, "--dance-white") == 0) {
+            options.dance_white = true;
+            continue;
+        }
         if (std::strcmp(arg, "--safe-rect") == 0) {
             options.safe_rect = true;
             options.viewer = true;
@@ -216,6 +221,9 @@ bool parse_cli(int argc, char** argv, Options& options) {
         } else if (std::strcmp(arg, "--script") == 0 && value) {
             options.script = value;
             options.viewer = true;
+        } else if (std::strcmp(arg, "--pose") == 0 && value) {
+            options.pose = value;
+            options.viewer = true;
         } else if (std::strcmp(arg, "--route") == 0 && value) {
             options.route = value;
         } else if (std::strcmp(arg, "--battle-script") == 0 && value) {
@@ -230,6 +238,9 @@ bool parse_cli(int argc, char** argv, Options& options) {
             options.viewer = true;
         } else if (std::strcmp(arg, "--dummy-distance") == 0 && value) {
             options.dummy_distance = static_cast<float>(std::atof(value));
+        } else if (std::strcmp(arg, "--dance") == 0 && value) {
+            options.dance = value;
+            options.viewer = true;
         } else if (std::strcmp(arg, "--capture") == 0 && value) {
             options.capture = value;
         } else if (std::strcmp(arg, "--frames") == 0 && value) {
@@ -254,7 +265,8 @@ bool parse_cli(int argc, char** argv, Options& options) {
         ++i;
     }
     // a script runs to its end unless told otherwise (main.cpp)
-    if (!options.capture.empty() && options.frames <= 0 && options.script.empty()) {
+    if (!options.capture.empty() && options.frames <= 0 && options.script.empty() &&
+        options.pose.empty()) {
         options.frames = 1;
     }
     return true;

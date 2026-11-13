@@ -60,17 +60,6 @@ PointerRect cell_rect(int cell) {
     return {x + 4.0f, y + 3.0f, x + 51.0f, y + 33.0f};
 }
 
-int pointer_cell(const Ui& ui) {
-    if (!ui.pointer.visible) {
-        return -1;
-    }
-    for (int i = 0; i < 16; ++i) {
-        if (pointer_inside(ui.pointer, cell_rect(i))) {
-            return i;
-        }
-    }
-    return -1;
-}
 
 } // namespace
 
@@ -87,17 +76,23 @@ void media_edit_update(FrontEnd& fe, Ui& ui, MediaScreen& m) {
     if (m.edit_clock < cad(ui, 0.15f) - (cad(ui, -0.3f) << 1) - cad(ui, -0.4f)) {
         return;
     }
-    // the mouse: hovering a cell moves the cursor there
-    const int hit = ui.pointer.moved ? pointer_cell(ui) : -1;
-    if (hit >= 0 && (hit == 15 ? m.row != 3 : hit != cell)) {
-        m.row = hit == 15 ? 3 : hit / 5;
-        m.col = hit == 15 ? m.col : hit % 5;
-        ui_sound(ui, bank_sys, se_menu_cursor_vertical);
-        menu_input_mark(ui);
+    // the mouse: entering a cell (or the exit plate) moves the cursor there
+    PointerRect cells[16];
+    for (int i = 0; i < 16; ++i) {
+        cells[i] = cell_rect(i);
+    }
+    int pick = m.row == 3 ? 15 : cell;
+    if (menu_cursor(ui, pick, 0, 16, cursor_no_dpad, bank_sys, se_menu_cursor_vertical, cells)) {
+        m.row = pick == 15 ? 3 : pick / 5;
+        m.col = pick == 15 ? m.col : pick % 5;
         media_track_text_set(fe, ui, m);
         return;
     }
-    const PadRecord& pad = ui.pad;
+    // and a click on a page arrow (out at 58 and 331) turns the page
+    const PointerRect arrows[2] = {sprite_rect(ui, 0x6c0, 58, 250),
+                                   sprite_rect(ui, 0x6c2, 331, 250)};
+    const int arrow = ui.pointer.left ? pointer_pick(ui.pointer, arrows, 2) : -1;
+    const PadRecord pad = menu_pad_unclicked(ui);
     // a left click confirms only on the cursor's cell (or the exit plate), where the pointer put
     // the cursor: a click elsewhere in the catalogue adds nothing and doesn't leave
     const PointerRect under = cell_rect(m.row == 3 ? 15 : cell);
@@ -110,14 +105,16 @@ void media_edit_update(FrontEnd& fe, Ui& ui, MediaScreen& m) {
             return;
         }
         refresh = menu_cursor(ui, m.row, 0, 4, 0x16, 0, 3) != 0;
-    } else if ((pad.b.rising & pad_left_trigger) != 0 || (ui.pointer.wheel > 0 && m.pages > 1)) {
+    } else if ((pad.b.rising & pad_left_trigger) != 0 || (ui.pointer.wheel > 0 && m.pages > 1) ||
+               arrow == 0) {
         if (m.pages > 1) {
             page_step(m, -1);
             ui_sound(ui, bank_sys, se_menu_cursor_horizontal);
             m.arrow_left = 15;
             refresh = true;
         }
-    } else if ((pad.b.rising & pad_right_trigger) != 0 || (ui.pointer.wheel < 0 && m.pages > 1)) {
+    } else if ((pad.b.rising & pad_right_trigger) != 0 || (ui.pointer.wheel < 0 && m.pages > 1) ||
+               arrow == 1) {
         if (m.pages > 1) {
             page_step(m, 1);
             ui_sound(ui, bank_sys, se_menu_cursor_horizontal);

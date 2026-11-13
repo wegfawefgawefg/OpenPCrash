@@ -203,7 +203,10 @@ void plus_tech_tune_card_draw(FrontEnd& fe, Ui& ui, PlusTechScreen& p, bool tuni
     level(p.tune, 215, 307);
     sprite_draw_at(ui, 0x489, 203.0f + static_cast<float>(p.tune), 290, 0x106);
     const GarageEntry* e = plus_tech_entry(p);
-    const int cost = e ? part_tune_price(fe.shop.tables, p.kind, e->id, p.tune_was, p.tune) : 0;
+    const int cost =
+        e ? cheat_tune_price(fe.world->story.cheats,
+                             part_tune_price(fe.shop.tables, p.kind, e->id, p.tune_was, p.tune))
+          : 0;
     money_amount_draw(ui, cost, 272, 335, 0x106, 9,
                       fe.world->story.money < cost ? 0xffff0000 : 0xfff0f0f0);
 }

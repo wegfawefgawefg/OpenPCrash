@@ -13,9 +13,9 @@ matching hacks (volatile stand-ins, identical arms, goto runs): write the plain 
 
 Follow the C+- style of Mans In My House, Splonks and Teeming (`~/Coding/AGENTS.md`):
 
-- One top-level `State` in `src/state.hpp`. `main.cpp` runs the loop in plain paragraphs with terse lowercase
-  comments (`// pump input`, `// run fixed steps`, `// draw frame`). Graphics, audio and the Gubsy runtime are
-  locals in main. No `App` struct, no `game.hpp`, no `utils`.
+- One top-level `State` in `src/state.hpp`. `main.cpp` inits and shuts down; the loop (`src/front_end_run.cpp`,
+  the viewer's `src/viewer_run.cpp`) runs in plain paragraphs with terse lowercase comments (`// pump input`,
+  `// run fixed steps`, `// draw frame`). Graphics, audio and the Gubsy runtime are locals in main. No `App` struct, no `game.hpp`, no `utils`.
 - Plain structs, free functions, explicit dispatch (a switch, not virtual calls). Modest abstraction.
 - Files of 300-500 lines in flat domain folders (`world/`, `mech/`, `battle/`, `ai/`, `render/`, `menu/`,
   `data/`, `audio/`...). File names say what they hold.

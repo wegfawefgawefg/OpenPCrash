@@ -1,0 +1,8 @@
+[Unit]
+Description=OpenPCrash visit count: fetch the DB-IP city database monthly
+[Timer]
+OnCalendar=*-*-04 03:30:00 UTC
+RandomizedDelaySec=2h
+Persistent=true
+[Install]
+WantedBy=timers.target

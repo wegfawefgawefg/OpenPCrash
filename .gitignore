@@ -5,3 +5,5 @@ captures/
 /cooked/
 .cache/
 .claude/
+/bug-reports/
+__pycache__/

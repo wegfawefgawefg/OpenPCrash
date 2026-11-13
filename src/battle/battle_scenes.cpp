@@ -228,7 +228,8 @@ void intro_exit(World& world, Fighter& f) {
     }
 }
 
-// turn toward the entry point
+// turn toward the entry point. Nothing in the door scene opens the gate: the walk's touch does
+// (stage_props_collide_sphere's gate_touch), and door_update only closes it behind the fighter
 // decomp: scene_door_enter 0x89F23
 void door_enter(World& world, Fighter& f) {
     BattleState& b = world.battle_state;

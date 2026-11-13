@@ -29,6 +29,7 @@ Xvfb (`scripts/capture.sh`'s setup), `--no-dialogue`, dummy audio.
 | `PHANTOMCRASH_DEV_MONEY=N` | the money, in units of 10 NY |
 | `PHANTOMCRASH_DEV_ENTRY=row` | with `--state 6`: the player's build row in today's fight |
 | `PHANTOMCRASH_DEV_FAST=N` | a capture steps N world steps a drawn frame (1..8): a fight at 8 runs several times real time on lavapipe |
+| `PHANTOMCRASH_DEV_BETWEEN=N` | a capture draws N frames a step (1..16), the ones between two steps with their interpolation alpha, as a display faster than 60 Hz does; with `PHANTOMCRASH_DEV_SHOTS` on consecutive frames it shows what a fight draws between its steps |
 | `PHANTOMCRASH_LOAD_SLOT=N` | load save slot N before the first state |
 | `PHANTOMCRASH_SAVE_DIR`, `PHANTOMCRASH_GUBSY_ROOT` | where saves and gubsy's files go (keep headless runs out of your own) |
 | `PHANTOMCRASH_STORY_DUMP=path` | the story and the whole save image written at shutdown |

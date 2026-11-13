@@ -1,6 +1,8 @@
 #include "render/scenery.hpp"
 
 #include "effects/effects.hpp"
+#include "mech/dance_pose.hpp"
+#include "perf_log.hpp"
 #include "render/camo_draw.hpp"
 #include "render/mesh_draw.hpp"
 #include "render/vk_sprites.hpp"
@@ -173,20 +175,25 @@ void view_draws(Scenery& scenery, Renderer& renderer, const CameraPose& camera, 
 
     // the queues: the stage's objects by layer, the fighter's parts (pass 4) and its shadow
     // volume batch (pass 3, day stages only)
-    std::vector<PassItem> items;
-    stage_draw_items(scenery.stage, camera.position, matrices.view, items);
-    scenery.stage_view.day = scenery.day;
-    stage_view_draw(scenery.stage_view, renderer, matrices.view, camera.position, alpha, items);
+    std::vector<PassItem>& items = scenery.items;
+    items.clear();
+    const Dance* dance = scenery.dance;
+    if (!dance) {
+        stage_draw_items(scenery.stage, camera.position, matrices.view, items);
+        scenery.stage_view.day = scenery.day;
+        stage_view_draw(scenery.stage_view, renderer, matrices.view, camera.position, alpha, items);
+    }
     // the effects: their meshes, the billboards of pass 10, the point lights (src/effects)
-    std::vector<Billboard> billboards;
-    if (scenery.effects) {
+    std::vector<Billboard>& billboards = scenery.billboards;
+    billboards.clear();
+    if (scenery.effects && !dance) {
         scenery.effects->flash_scale = static_cast<float>(renderer.options.flashes) / 100.0f;
         effects_queue(*scenery.effects, renderer, alpha, matrices.view, matrices.projection,
                       camera.position, view_index, items, billboards, lights.points);
         // the cockpit instruments in pass 11 (one view only)
         if (cockpit && scenery.cockpit) {
             effects_queue_cockpit(*scenery.effects, *scenery.cockpit, scenery.stage_view.quad,
-                                  scenery.stage_view.quad_mesh, items);
+                                  scenery.stage_view.quad_mesh, aspect, items);
         }
     }
 
@@ -196,7 +203,8 @@ void view_draws(Scenery& scenery, Renderer& renderer, const CameraPose& camera, 
     for (int slot = 0; slot < 6; ++slot) {
         const FighterPose* fighter = fighters ? &fighters[slot] : nullptr;
         const bool moving = fighter && fighter->present;
-        if (!moving && (slot > 0 || fighters)) {
+        const bool dancing = dance && slot == 0 && !moving;
+        if (!moving && !dancing && (slot > 0 || fighters)) {
             continue;
         }
         const MechParts& mech = scenery_mech(scenery, slot);
@@ -211,8 +219,10 @@ void view_draws(Scenery& scenery, Renderer& renderer, const CameraPose& camera, 
             const float* at = scenery.mech_position;
             const Mat4 world =
                 mat_multiply(mat_rotation_y(heading), mat_translation(at[0], at[1], at[2]));
-            build_mech_pose(mech_pose_input(mech, idle_slot, std::fmod(ticks, idle_ticks), world),
-                            pose);
+            build_mech_pose(
+                dancing ? dance_pose_input(*dance, mech, ticks, world)
+                        : mech_pose_input(mech, idle_slot, std::fmod(ticks, idle_ticks), world),
+                pose);
         }
         const std::size_t fighter_first = items.size();
         const bool body = !moving || !fighter->body_hidden;
@@ -248,12 +258,12 @@ void view_draws(Scenery& scenery, Renderer& renderer, const CameraPose& camera, 
         } else {
             mech_sticker_items(mech, pose, 2, 0x400, 0xFFFFFFFF, items);
         }
-        if (body && scenery.stage.selector % 2 == 0) {
+        if (body && !dance && scenery.stage.selector % 2 == 0) {
             fighter_shadow_items(scenery, mech, pose, items);
         }
         // PHANTOMCRASH_POSE=1: slot 0's pose matrices, once
-        static bool told = false;
-        if (slot == 0 && !told && SDL_getenv("PHANTOMCRASH_POSE")) {
+        static bool told = SDL_getenv("PHANTOMCRASH_POSE") == nullptr;
+        if (slot == 0 && !told) {
             told = true;
             std::printf("pose: %zu fighter items, %d IK tips with rotation\n",
                         items.size() - fighter_first, pose.ik_tip_rotations);
@@ -275,7 +285,10 @@ void view_draws(Scenery& scenery, Renderer& renderer, const CameraPose& camera, 
     }
 
     // the passes in order, each queue sorted as its draw callback sorts it
-    std::vector<const PassItem*> queues[17];
+    std::array<std::vector<const PassItem*>, 17>& queues = scenery.queues;
+    for (std::vector<const PassItem*>& queue : queues) {
+        queue.clear();
+    }
     for (const PassItem& item : items) {
         if (item.pass >= 0 && item.pass < 17) {
             queues[item.pass].push_back(&item);
@@ -321,6 +334,13 @@ void view_draws(Scenery& scenery, Renderer& renderer, const CameraPose& camera, 
             // pass_view_set's identity view for the HUD: only the port's z flip
             DrawContext hud = context;
             hud.view = mat_scaling(1, 1, -1);
+            // in the view's own field of view, not FIELD OF VIEW's: the instruments and the
+            // readout's panels are laid out on retail's screen
+            if (camera.widen != 0.0f) {
+                hud.projection = camera_matrices(camera.position, camera.yaw, camera.pitch, aspect,
+                                                 camera.fov - camera.widen)
+                                     .projection;
+            }
             hud.view_projection = mat_multiply(hud.view, hud.projection);
             draw_meshes(hud, queue, draws);
         } else if (pass == 10 && scenery.effects) {
@@ -345,18 +365,25 @@ bool draw_scenery_fighters(Scenery& scenery, Renderer& renderer, const CameraPos
 bool draw_scenery_views(Scenery& scenery, Renderer& renderer, const SceneryView* views,
                         int count, const FighterPose* fighters, float ticks, float alpha,
                         const std::string& capture_path) {
+    const std::uint64_t scene_start = perf_now(); // the draw list's time, up to the renderer's
     // the battle's lighting for the day (battle_lighting_update, battle_task_begin)
     FrameSetup setup;
     SceneLights lights;
     battle_lighting(scenery.lighting, scenery.stage.selector, scenery.day, lights, setup);
     setup.clear[0] = setup.clear[1] = setup.clear[2] = 0; // clear_color 0xFF000000
+    if (scenery.dance && scenery.dance->white) {
+        setup.clear[0] = setup.clear[1] = setup.clear[2] = 1; // --dance-white
+    }
     setup.clear[3] = 1;
     // the heat haze's wave advances 0.2 a composite, once a 30 Hz update, back to 0 past 2 pi
     const int updates = static_cast<int>(ticks) / 2;
     setup.wave_phase = 0.2f * static_cast<float>(updates % 32);
     // the stage's animation once a frame, then each view's queues and passes
     stage_animation_frame(scenery.stage.animation, renderer, alpha);
-    FrameDraws draws;
+    FrameDraws& draws = scenery.draws;
+    draws.items.clear();
+    draws.uniforms.clear();
+    draws.storage.clear();
     count = std::clamp(count, 1, 4);
     if (count == 1) {
         std::copy(views[0].rect, views[0].rect + 4, setup.viewport);
@@ -419,5 +446,6 @@ bool draw_scenery_views(Scenery& scenery, Renderer& renderer, const SceneryView*
             draws.items.push_back(item);
         }
     }
+    perf_add(PerfPart::scene, perf_now() - scene_start);
     return renderer_draw_frame(renderer, setup, draws, capture_path);
 }
