@@ -131,6 +131,8 @@ copy_licenses() { # build licenses_dir
     for name in sdl3:SDL3 sdl3_image:SDL3_image sdl3_ttf:SDL3_ttf sdl3_mixer:SDL3_mixer gubsy:Gubsy \
                 gview:GView glayout:GLayout gfxp:gfxp gsexp:gsexp cgltf:cgltf bc7enc_rdo:bc7enc_rdo \
                 curl:curl; do
+        # not every build fetches every one (curl is the system's on Linux and the Mac)
+        [[ -d "$deps/${name%%:*}-src" ]] || continue
         file="$(find "$deps/${name%%:*}-src" -maxdepth 1 -type f \
                 \( -iname 'LICENSE*' -o -iname 'COPYING*' \) 2>/dev/null | sort | head -1)"
         if [[ -n "$file" ]]; then
