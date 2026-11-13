@@ -1,5 +1,7 @@
 #include "run_log.hpp"
 
+#include "user_folder.hpp"
+
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
@@ -106,17 +108,28 @@ void run_log_start(int argc, char** argv, int keep) {
     log.started = SDL_GetTicksNS();
     SDL_GetLogOutputFunction(&log.then, &log.then_data);
     SDL_SetLogOutputFunction(write_line, &log);
+    // the per-user folder under its old name moved to the new one before anything is written
+    // there (src/user_folder.hpp), said in the log once it is open
+    const std::string moved = user_folder_migrate();
+    const auto say_moved = [&] {
+        if (!moved.empty()) {
+            SDL_Log("%s", moved.c_str());
+        }
+    };
     const char* off = SDL_getenv("PHANTOMCRASH_RUN_LOG");
     if (off && off[0] == '0') {
+        say_moved();
         return;
     }
-    char* prefs = SDL_GetPrefPath("PhantomCrash", "PhantomCrash");
+    char* prefs = SDL_GetPrefPath(user_folder_org, user_folder_app);
     if (!prefs) {
+        say_moved();
         return;
     }
     const std::string dir = std::string(prefs) + "logs/";
     SDL_free(prefs);
     if (!SDL_CreateDirectory(dir.c_str())) {
+        say_moved();
         return;
     }
     prune(dir, keep);
@@ -131,6 +144,7 @@ void run_log_start(int argc, char** argv, int keep) {
     log.file = std::fopen(log.path.c_str(), "a");
     if (!log.file) {
         log.path.clear();
+        say_moved();
         return;
     }
     std::string args;
@@ -143,6 +157,7 @@ void run_log_start(int argc, char** argv, int keep) {
             t.hour, t.minute, t.second, SDL_VERSIONNUM_MAJOR(v), SDL_VERSIONNUM_MINOR(v),
             SDL_VERSIONNUM_MICRO(v), SDL_GetRevision(), args.c_str());
     SDL_Log("run: this log is %s", log.path.c_str());
+    say_moved();
 }
 
 const std::string& run_log_path() {

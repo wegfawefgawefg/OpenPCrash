@@ -10,30 +10,6 @@
 #include <cmath>
 #include <cstdio>
 
-// a to b by t per channel, b's alpha
-// decomp: record_color_lerp 0x333B9
-std::uint32_t record_color_lerp(std::uint32_t a, float t, std::uint32_t b) {
-    t = t > 1.0f ? 1.0f : t < 0.0f ? 0.0f : t;
-    const float u = 1.0f - t;
-    auto channel = [&](int shift) {
-        const float ca = static_cast<float>((a >> shift) & 0xff);
-        const float cb = static_cast<float>((b >> shift) & 0xff);
-        return static_cast<std::uint32_t>(static_cast<int>(ca * u + cb * t)) & 0xff;
-    };
-    return (channel(16) << 16) | (channel(8) << 8) | channel(0) | (b & 0xff000000u);
-}
-
-// a panel unrolling downwards over 18 updates (y scale = clock / 18), centred
-void record_unroll_draw(Ui& ui, int id, float x, float y, float fade, int blend) {
-    Sprite s = sprite_of(ui, id);
-    s.pos[0] = static_cast<float>(sprite_width(ui, id)) * 0.5f + x;
-    s.pos[1] = static_cast<float>(sprite_height(ui, id)) * 0.5f + y;
-    s.blend = blend;
-    s.scale[1] = fade;
-    s.flags |= 8;
-    sprite_submit(ui, s);
-}
-
 namespace {
 
 constexpr int common_asset = 0x690;
@@ -391,7 +367,7 @@ void record_tables_load(FrontEnd& fe, Ui& ui, RecordScreen& r) {
     auto at = [](const std::vector<int>& v, int i) {
         return i >= 0 && i < static_cast<int>(v.size()) ? v[static_cast<std::size_t>(i)] : -1;
     };
-    // tournament_opponent_portrait, _scoobee_portrait 0x330B2
+    // tournament_opponent_portrait, _scoobee_portrait
     for (int t = 0; t < tournament_count; ++t) {
         const int fixed = fe.story_tables.tournaments[static_cast<std::size_t>(t)].fixed_opponent;
         if (fixed == -1) {

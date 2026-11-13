@@ -57,7 +57,8 @@ bool alternates_done(const PoolProgress& p) {
     return true;
 }
 
-// queue_opponent 0x45907: by the progress byte, 0 to queue 0 and 1 to queue 1
+// by the progress byte, 0 to queue 0 and 1 to queue 1
+// decomp: RumbleContext::queue_opponent 0x45907
 bool queue_opponent(RumbleSlot& r, Story& story, const RumbleTicket& t) {
     if (t.opponent == -1) {
         return false;
@@ -298,6 +299,7 @@ bool rumble_pools_done(const World& world, const StoryTables& tables, int slot) 
     return true;
 }
 
+// decomp: RumbleContext::choose_opponent 0x459E8
 bool choose_opponent(World& world, int slot, RumbleTicket& ticket, int& queue) {
     RumbleSlot& r = world.rumble[slot];
     const int out = r.queues[0].out + r.queues[1].out + r.queues[2].out;
@@ -359,6 +361,7 @@ bool choose_opponent(World& world, int slot, RumbleTicket& ticket, int& queue) {
     return false;
 }
 
+// decomp: RumbleContext::materialize_actor 0x45637
 void materialize_actor(World& world, const RosterTables& roster, int slot, int index,
                        const RumbleTicket& ticket, int queue) {
     RumbleSlot& r = world.rumble[slot];
@@ -406,6 +409,7 @@ void materialize_actor(World& world, const RosterTables& roster, int slot, int i
     }
 }
 
+// decomp: RumbleContext::release_opponent 0x45D24
 void release_opponent(World& world, const StoryTables& tables, const RosterTables& roster,
                       int slot, const RosterEntry& entry, bool killed_by_player, bool fixed) {
     RumbleSlot& r = world.rumble[slot];

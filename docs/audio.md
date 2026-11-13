@@ -184,7 +184,7 @@ frames/s= gap<= ask<= late= voices= starts= cut= refused= stopped= ring-full= na
 ## The run log
 
 Every run writes its `SDL_Log` lines to a file of its own, `<pref path>/logs/run-YYYYMMDD-HHMMSS.log`, which on Linux is
-`~/.local/share/PhantomCrash/PhantomCrash/logs/` (SDL_GetPrefPath; `src/run_log.cpp`). The newest ten are kept. Each line
+`~/.local/share/OpenPCrash/OpenPCrash/logs/` (SDL_GetPrefPath; `src/run_log.cpp`). The newest ten are kept. Each line
 has the seconds since the start; the first says the date, SDL's version and the arguments. `PHANTOMCRASH_RUN_LOG=0`
 writes none. With a report of sound going away, the run's log says what the device did.
 

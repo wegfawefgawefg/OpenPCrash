@@ -5,6 +5,6 @@
 #include <string>
 
 std::string sjis_to_utf8(const std::string& sjis);
-// SDL_iconv_string("UTF-8", from, bytes, size) where iconv has from ("CP932" or "SHIFT_JIS");
-// cp932 through Windows' code page there. Null on failure; SDL_free the result
+// bytes in from ("CP932" or "SHIFT_JIS") to UTF-8, strict on every system: null when any byte
+// doesn't map (cp932 through Windows' code page there); SDL_free the result
 char* sjis_iconv_string(const char* from, const char* bytes, std::size_t size);

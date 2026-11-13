@@ -1,3 +1,6 @@
+OpenPCrash itself is free software under the GNU General Public License,
+version 3 (LICENSE.txt beside these notes).
+
 OpenPCrash is built with these libraries and this font. Each is used under
 its own license; the license texts are in licenses/ beside these notes.
 
@@ -8,7 +11,10 @@ SDL 3, SDL_image, SDL_ttf, SDL_mixer   zlib license        https://libsdl.org
 pl_mpeg (the movie player)             MIT                 https://github.com/phoboslab/pl_mpeg
 cgltf                                  MIT                 https://github.com/jkuhlmann/cgltf
 bc7enc_rdo (rgbcx, bc7enc)             MIT / public domain https://github.com/richgel999/bc7enc_rdo
-Gubsy, GView, GLayout, gfxp, gsexp     see licenses/       https://github.com/wegfawefgawefg
+Gubsy, GView, GLayout, gfxp, gsexp     GPLv3               https://github.com/wegfawefgawefg
+  by OpenPCrash's author, under the same license as the game; the commits
+  built predate some of their LICENSE files, so licenses/ has each one's
+  copy of Gubsy's GPLv3 text
 Jost (the setup screen's font)         SIL Open Font License 1.1
                                        https://github.com/indestructible-type/Jost
 

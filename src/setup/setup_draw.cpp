@@ -104,6 +104,27 @@ bool setup_art_open(SetupArt& art, SDL_Renderer* renderer, const std::string& fo
     return true;
 }
 
+void setup_art_fit(SetupArt& art) {
+    // the letterbox in the output's pixels (the window's size times its pixel density)
+    SDL_FRect box{};
+    if (!SDL_GetRenderLogicalPresentationRect(art.renderer, &box) || box.w <= 0) {
+        return;
+    }
+    art.origin = {box.x, box.y};
+    const float scale = std::clamp(box.w / setup_w, 0.25f, 8.0f);
+    if (std::fabs(scale - art.scale) < 0.001f) {
+        return;
+    }
+    art.scale = scale;
+    for (int i = 0; i < static_cast<int>(SetupFont::count); ++i) {
+        TTF_SetFontSize(art.fonts[i], font_files[i].size * scale);
+    }
+    for (auto& [key, texture] : art.texts) {
+        SDL_DestroyTexture(texture);
+    }
+    art.texts.clear();
+}
+
 void setup_art_close(SetupArt& art) {
     for (auto& [key, texture] : art.texts) {
         SDL_DestroyTexture(texture);
@@ -211,7 +232,7 @@ float draw_text(SetupArt& art, SetupFont font, const std::string& text, float x,
                                            : align > 0 ? TTF_HORIZONTAL_ALIGN_RIGHT
                                                        : TTF_HORIZONTAL_ALIGN_CENTER);
             surface = TTF_RenderText_Blended_Wrapped(face, text.c_str(), 0, c,
-                                                     static_cast<int>(wrap));
+                                                     static_cast<int>(wrap * art.scale));
         } else {
             surface = TTF_RenderText_Blended(face, text.c_str(), 0, c);
         }
@@ -224,10 +245,17 @@ float draw_text(SetupArt& art, SetupFont font, const std::string& text, float x,
     if (!texture) {
         return 0;
     }
+    // the texture is in the window's pixels: placed and sized back in layout units, its corner on
+    // a whole pixel so each texel lands on one
     float w = 0, h = 0;
     SDL_GetTextureSize(texture, &w, &h);
+    w /= art.scale;
+    h /= art.scale;
     const float at = align < 0 ? x : align > 0 ? x - w : x - w / 2;
-    const SDL_FRect to{std::round(at), std::round(y), w, h};
+    const auto on_pixel = [&](float v, float origin) {
+        return (std::round(origin + v * art.scale) - origin) / art.scale;
+    };
+    const SDL_FRect to{on_pixel(at, art.origin.x), on_pixel(y, art.origin.y), w, h};
     SDL_RenderTexture(art.renderer, texture, nullptr, &to);
     return h;
 }
@@ -238,7 +266,9 @@ void draw_button(SetupArt& art, SDL_FRect rect, const std::string& label, bool l
     } else {
         framed_round_rect(art, rect, 14, 4, setup_white, {14, 14, 18, 255});
     }
-    const float h = static_cast<float>(TTF_GetFontHeight(art.fonts[static_cast<int>(SetupFont::button)]));
+    const float h =
+        static_cast<float>(TTF_GetFontHeight(art.fonts[static_cast<int>(SetupFont::button)])) /
+        art.scale;
     draw_text(art, SetupFont::button, label, rect.x + rect.w / 2, rect.y + (rect.h - h) / 2,
               lit ? setup_black : setup_yellow);
 }

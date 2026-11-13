@@ -106,36 +106,6 @@ void quad_counts(ModelObject& object, bool additive) {
 
 } // namespace
 
-Vec3f original_of(const FxVec3& v) {
-    return {fx_float(v.x), fx_float(v.y), -fx_float(v.z)};
-}
-
-Mat4 port_matrix(const Mat4& m) {
-    Mat4 out = m;
-    out.m[0][2] = -out.m[0][2];
-    out.m[1][2] = -out.m[1][2];
-    out.m[3][2] = -out.m[3][2];
-    out.m[2][0] = -out.m[2][0];
-    out.m[2][1] = -out.m[2][1];
-    return out;
-}
-
-// decomp: matrix_billboard_at 0x661A3
-Mat4 billboard_matrix(const Vec3f& at, const Vec3f& eye, float off_x, float off_y, float off_z) {
-    const Vec3f b = vec_sub(at, eye);
-    const Vec3f x = vec_normalize(vec_cross(Vec3f{0, 1, 0}, b));
-    const Vec3f y = vec_normalize(vec_cross(b, vec_cross(Vec3f{0, 1, 0}, b)));
-    const Vec3f z = vec_normalize(b);
-    Mat4 m;
-    m.m[0][0] = x.x, m.m[0][1] = x.y, m.m[0][2] = x.z;
-    m.m[1][0] = y.x, m.m[1][1] = y.y, m.m[1][2] = y.z;
-    m.m[2][0] = z.x, m.m[2][1] = z.y, m.m[2][2] = z.z;
-    m.m[3][0] = x.x * off_x + at.x + y.x * off_y + z.x * off_z;
-    m.m[3][1] = x.y * off_x + at.y + y.y * off_y + z.y * off_z;
-    m.m[3][2] = x.z * off_x + at.z + y.z * off_y + z.z * off_z;
-    return m;
-}
-
 void effects_queue_slot(const Effects& fx, int slot, const Mat4& world, int pass,
                         std::uint32_t flags, std::uint32_t factor, const Mat4& view,
                         std::vector<PassItem>& items) {

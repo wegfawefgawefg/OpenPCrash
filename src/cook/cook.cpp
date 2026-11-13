@@ -224,18 +224,26 @@ bool run_cook(const CookOptions& options, const CookPlan& plan, const CoreTables
                     options.cooked_dir.c_str(), threads);
     }
 
+    // a cancel skips every item after it; a pack it caught half made isn't written
+    const auto cancelled = [&] {
+        return options.cancel && options.cancel->load(std::memory_order_relaxed);
+    };
+
     // pass 1: models, motion, tables, collision; which textures each pack needs
     std::atomic<std::uint64_t> written_total{0};
     std::atomic<int> cooked_packs{0};
     const auto finish = [&](PackJob& job) {
         std::uint64_t written = 0;
-        if (job.error.empty() && finish_pack(options, plan, job, written)) {
+        if (!cancelled() && job.error.empty() && finish_pack(options, plan, job, written)) {
             written_total += written;
             ++cooked_packs;
         }
     };
     parallel_for(static_cast<int>(jobs.size()), threads, [&](int i) {
         PackJob& job = *jobs[i];
+        if (cancelled()) {
+            return;
+        }
         if (cook_items(options, plan, core, job) && job.textures.empty()) {
             finish(job);
         }
@@ -254,8 +262,10 @@ bool run_cook(const CookOptions& options, const CookPlan& plan, const CoreTables
         PackJob& job = *jobs[textures[i].first];
         const int t = textures[i].second;
         const TextureJob& texture = job.textures[t];
-        cook_texture(options.data_dir + "/" + texture.path, plan_hint(plan, texture.path),
-                     texture.mips, job.cooked[t], job.texture_errors[t]);
+        if (!cancelled()) {
+            cook_texture(options.data_dir + "/" + texture.path, plan_hint(plan, texture.path),
+                         texture.mips, job.cooked[t], job.texture_errors[t]);
+        }
         if (--job.remaining == 0) {
             finish(job);
         }
@@ -266,6 +276,10 @@ bool run_cook(const CookOptions& options, const CookPlan& plan, const CoreTables
     report.textures += static_cast<int>(textures.size());
     report.bytes += written_total;
     report.seconds += static_cast<double>(SDL_GetTicksNS() - start) / 1e9;
+    if (cancelled()) {
+        error = "cancelled";
+        return false;
+    }
     for (const auto& job : jobs) {
         if (!job->error.empty()) {
             std::fprintf(stderr, "cook: %s: %s\n", job->plan->name.c_str(), job->error.c_str());

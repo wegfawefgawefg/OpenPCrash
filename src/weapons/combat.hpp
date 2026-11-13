@@ -178,7 +178,7 @@ enum CombatEventKind : std::uint8_t {
     // a human's settle took damage in a fight (battle phase 0): actor_settle_damage's
     // rumble_start on its pad, `value` the damage settled (presentation's pad rumble)
     event_hit_rumble,
-    // a shot's pass met something (battle_shots_update 0x9C942's hit_slot: the stage, the craft
+    // a shot's pass met something (battle_shots_update's hit_slot: the stage, the craft
     // or a crate, a prop, or a fighter), at the shot: its hit sound by the weapon (presentation).
     // `slot` the shooter, `value` the mount (4 the blast weapon); a beam's on even steps only,
     // as its once-an-update pass

@@ -51,25 +51,44 @@ char* sjis_iconv_string(const char*, const char* bytes, std::size_t size) {
 #else
 #include <iconv.h>
 
-std::string sjis_to_utf8(const std::string& sjis) {
-    iconv_t convert = iconv_open("UTF-8", "CP932");
+namespace {
+
+// from to UTF-8 through iconv, strict as code page 932 is on Windows: a byte iconv can't map fails
+// the whole string (SDL_iconv_string would skip it and read on, so a bad lead byte left its trail
+// byte as a character of its own)
+bool iconv_to_utf8(const char* from, const char* bytes, std::size_t size, std::string& out) {
+    iconv_t convert = iconv_open("UTF-8", from);
     if (convert == reinterpret_cast<iconv_t>(-1)) {
-        return sjis;
+        return false;
     }
-    std::vector<char> out(sjis.size() * 4 + 16);
-    char* in_at = const_cast<char*>(sjis.data());
-    std::size_t in_left = sjis.size();
-    char* out_at = out.data();
-    std::size_t out_left = out.size();
+    std::vector<char> text(size * 4 + 16);
+    char* in_at = const_cast<char*>(bytes);
+    std::size_t in_left = size;
+    char* out_at = text.data();
+    std::size_t out_left = text.size();
     const std::size_t result = iconv(convert, &in_at, &in_left, &out_at, &out_left);
     iconv_close(convert);
     if (result == static_cast<std::size_t>(-1)) {
-        return sjis;
+        return false;
     }
-    return std::string(out.data(), out.size() - out_left);
+    out.assign(text.data(), text.size() - out_left);
+    return true;
+}
+
+} // namespace
+
+std::string sjis_to_utf8(const std::string& sjis) {
+    std::string out;
+    return iconv_to_utf8("CP932", sjis.data(), sjis.size(), out) ? out : sjis;
 }
 
 char* sjis_iconv_string(const char* from, const char* bytes, std::size_t size) {
-    return SDL_iconv_string("UTF-8", from, bytes, size);
+    std::string out;
+    if (!iconv_to_utf8(from, bytes, size, out)) {
+        return nullptr;
+    }
+    char* copy = static_cast<char*>(SDL_malloc(out.size() + 1));
+    SDL_memcpy(copy, out.c_str(), out.size() + 1);
+    return copy;
 }
 #endif

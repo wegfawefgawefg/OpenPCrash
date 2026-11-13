@@ -13,7 +13,7 @@
 
 struct World;
 
-// names the original keeps as font glyphs (name entry, sjis_to_glyphs 0xBDC51): -1 ends one
+// names the original keeps as font glyphs (name entry, sjis_to_glyphs): -1 ends one
 inline constexpr int glyph_name_length = 9;
 using GlyphName = std::int16_t[glyph_name_length];
 

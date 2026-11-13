@@ -39,7 +39,7 @@ void garage_name_banner_draw(Ui& ui, const Garage& garage, int timer, int y, int
 void garage_banner_draw(Ui& ui, const World& world, int timer, int y, int blend,
                         bool plate = false);
 
-// icon_on_plate_draw 0x6DEA0: the plate 0xC32 at x, y and the icon at x + dx, y + 2
+// icon_on_plate_draw: the plate 0xC32 at x, y and the icon at x + dx, y + 2
 void icon_on_plate_draw(Ui& ui, int x, int y, int blend, int icon, int dx);
 
 // a glyph name (-1 ended or full) as text

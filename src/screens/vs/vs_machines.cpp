@@ -1,5 +1,5 @@
-// VS setup's machine page (decomp docs/port/screens.md "Machine page": step6, vs_entry_update
-// 0x41F7F, vs_panel_machine_draw, vs_panel_name_draw): each player's list of the
+// VS setup's machine page (decomp docs/port/screens.md "Machine page": step6, vs_entry_update,
+// vs_panel_machine_draw, vs_panel_name_draw): each player's list of the
 // three stock machines and then KEEP SV's kept ones (src/save/vs_saves.hpp), three cells in view
 // with the edge of a fourth, an 8-frame scroll, the locked machine's picture and name, and the
 // card for a kept machine that doesn't read.

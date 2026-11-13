@@ -47,7 +47,7 @@ template <typename T> const T* record_at(const std::vector<T>& rows, int row) {
     return row < 0 || row >= static_cast<int>(rows.size()) ? &rows[0] : &rows[row];
 }
 
-// chassis_weight_baseline_selected / _fixed 0x7C144: sqrt(base / weight), less up to 10%
+// chassis_weight_baseline_selected / _fixed: sqrt(base / weight), less up to 10%
 // for the leg tune, and over capacity the cliff (capacity / weight)^10
 // decomp: chassis_weight_baseline_selected 0x7C0C8
 Fx weight_factor(Fx base, Fx weight, Fx capacity, int leg_tune) {

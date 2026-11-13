@@ -27,8 +27,9 @@ Mat4 mirrored(Mat4 m) {
     return m;
 }
 
-// matrix_billboard_at 0x65973 with the camera at eye: z from the eye to the point, x = up x z,
+// matrix_billboard_at with the camera at eye: z from the eye to the point, x = up x z,
 // y = z x x, placed at the point moved by the offsets along them. Worked in the original's frame
+// decomp: matrix_billboard_at 0x661A3
 Mat4 billboard_at(const float at[3], const float eye[3], float off_x, float off_y, float off_z) {
     const Vec3f p{at[0], at[1], -at[2]};
     const Vec3f b = vec_sub(p, Vec3f{eye[0], eye[1], -eye[2]});
@@ -45,7 +46,7 @@ Mat4 billboard_at(const float at[3], const float eye[3], float off_x, float off_
     return mirrored(m);
 }
 
-// textured_quad_draw_full 0xAFFD3: grid_mdl with flags | mesh_factor, the texture slot as its base
+// textured_quad_draw_full: grid_mdl with flags | mesh_factor, the texture slot as its base
 // (tex 0), the colour as its texture factor
 void draw_quad(const StageView& view, const Mat4& world, int slot, std::uint32_t flags,
                std::uint32_t factor, const Mat4& view_matrix, std::vector<PassItem>& out) {

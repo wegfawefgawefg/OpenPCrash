@@ -1,7 +1,6 @@
 #include "render/vk_internal.hpp"
 #include "render/vk_sprites.hpp"
 
-#include <SDL3_image/SDL_image.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -16,38 +15,6 @@ struct FrameUniform {
     float linear_size[4];
     float pixel[4];
 };
-
-// the output's pixels to a PNG (it waits for the frame)
-bool save_capture(RendererState& vk, const std::string& path) {
-    const VkDeviceSize size = static_cast<VkDeviceSize>(vk.output.width) * vk.output.height * 4;
-    GpuBuffer readback;
-    if (!vk_create_mapped_buffer(vk, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, readback)) {
-        return false;
-    }
-    VkCommandBuffer command = vk_begin_once(vk);
-    VkBufferImageCopy copy{};
-    copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-    copy.imageExtent = {static_cast<std::uint32_t>(vk.output.width),
-                        static_cast<std::uint32_t>(vk.output.height), 1};
-    vkCmdCopyImageToBuffer(command, vk.output.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                           readback.buffer, 1, &copy);
-    bool ok = vk_end_once(vk, command);
-    if (ok) {
-        std::vector<std::uint8_t> pixels(static_cast<const std::uint8_t*>(readback.mapped),
-                                         static_cast<const std::uint8_t*>(readback.mapped) + size);
-        // opaque, the way the screen shows it
-        for (std::size_t i = 3; i < pixels.size(); i += 4) {
-            pixels[i] = 255;
-        }
-        SDL_Surface* surface =
-            SDL_CreateSurfaceFrom(vk.output.width, vk.output.height, SDL_PIXELFORMAT_ABGR8888,
-                                  pixels.data(), vk.output.width * 4);
-        ok = surface && IMG_SavePNG(surface, path.c_str());
-        SDL_DestroySurface(surface);
-    }
-    vk_destroy_buffer(vk, readback);
-    return ok;
-}
 
 PipelineKey key_of(const DrawItem& item) {
     PipelineKey key;
@@ -217,25 +184,6 @@ std::uint32_t push_uniform(FrameDraws& draws, const void* block, std::size_t siz
     draws.uniforms.resize(offset + size);
     std::memcpy(draws.uniforms.data() + offset, block, size);
     return static_cast<std::uint32_t>(offset);
-}
-
-void renderer_set_options(Renderer& renderer, const RenderOptions& options) {
-    RendererState& vk = *renderer.vk;
-    const RenderOptions old = vk.options;
-    renderer.options = options;
-    vk.options = options;
-    if (old.vsync != options.vsync || old.render_scale != options.render_scale) {
-        vk.swap_stale = true;
-    }
-    if (old.anisotropy != options.anisotropy) {
-        // the samplers again, and every texture set that holds one
-        vkDeviceWaitIdle(vk.device);
-        for (auto& [key, sampler] : vk.samplers) {
-            vkDestroySampler(vk.device, sampler, nullptr);
-        }
-        vk.samplers.clear();
-        vk_reset_descriptors(vk);
-    }
 }
 
 float renderer_scene_aspect(const Renderer& renderer, const float viewport[4]) {
@@ -529,7 +477,7 @@ bool renderer_draw_frame(Renderer& renderer, const FrameSetup& original_setup,
 
     if (!capture_path.empty()) {
         vkWaitForFences(vk.device, 1, &vk.fence, VK_TRUE, UINT64_MAX);
-        if (!save_capture(vk, capture_path)) {
+        if (!vk_save_capture(vk, capture_path)) {
             return false;
         }
         std::printf("captured %s\n", capture_path.c_str());

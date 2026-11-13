@@ -1,7 +1,7 @@
 #pragma once
 // The battle's scene cameras as presentation (decomp docs/port/cameras.md "Scene cameras",
 // "Blending", "Cuts and blends"; camera_scene_update, scene_camera_sample,
-// camera_scene_intro_set, camera_scene_rail_set, camera_view4_front 0x7E696,
+// camera_scene_intro_set, camera_scene_rail_set, camera_view4_front,
 // camera_view5_rails, camera_demo_set). After each step the drawn cameras
 // (View's main and seat cameras, which take_step_poses filled with each fighter's own) are
 // replaced where a scene runs:

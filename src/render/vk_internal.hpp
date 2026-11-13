@@ -178,6 +178,8 @@ void vk_barrier(VkCommandBuffer command, VkImage image, VkImageAspectFlags aspec
 
 // vk_target.cpp: swapchain and targets at the window's size
 bool vk_fit_window(RendererState& vk, Renderer& renderer);
+// the output's pixels to a PNG (it waits for the frame)
+bool vk_save_capture(RendererState& vk, const std::string& path);
 void vk_destroy_targets(RendererState& vk);
 // every render pass's two external dependencies, the same for all so any pipeline and
 // framebuffer fit any pass of their attachments (render pass compatibility)

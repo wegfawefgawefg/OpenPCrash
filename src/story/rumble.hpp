@@ -40,13 +40,13 @@ void fill_opponent_queues(World& world, const StoryTables& tables, const RosterT
                           int slot, int tournament);
 // rumble_pools_done
 bool rumble_pools_done(const World& world, const StoryTables& tables, int slot);
-// choose_opponent 0x459E8: a ticket from one of the three queues (rand_float draws), its queue + 1
+// choose_opponent: a ticket from one of the three queues (rand_float draws), its queue + 1
 bool choose_opponent(World& world, int slot, RumbleTicket& ticket, int& queue);
-// materialize_actor 0x45637: the drawn opponent's build, pilot, level, pay into roster[index],
+// materialize_actor: the drawn opponent's build, pilot, level, pay into roster[index],
 // with New Game+'s level bonus
 void materialize_actor(World& world, const RosterTables& roster, int slot, int index,
                        const RumbleTicket& ticket, int queue);
-// release_opponent 0x45D24: a fighter leaving hands its ticket back (to the beaten queue when the
+// release_opponent: a fighter leaving hands its ticket back (to the beaten queue when the
 // player shot it down), primaries whose alternates are done join, and with `fixed` the fixed
 // opponent is queued
 void release_opponent(World& world, const StoryTables& tables, const RosterTables& roster,

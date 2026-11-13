@@ -1,5 +1,5 @@
 // The slot card and the load's commit, shared by the load screen and the save menu (decomp
-// src/hand/u_06afc0.c save_slot_draw_summary 0x6B6A0 and save_slot_draw_details,
+// src/hand/u_06afc0.c save_slot_draw_summary and save_slot_draw_details,
 // src/od/u_028400.c save_commit_selected_load).
 #include "screens/system/save_slots.hpp"
 

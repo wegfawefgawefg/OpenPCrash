@@ -61,7 +61,7 @@ const PartRow* leg_row(const RosterTables& tables, int id);
 const PartRow* weapon_row(const RosterTables& tables, int mount, int id); // arm for 0, 1
 const PartRow* option_row(const RosterTables& tables, int id);
 
-// Scoobee::body_class (-1 without a body), leg_class 0x5F708 (-1 without legs),
+// Scoobee::body_class (-1 without a body), leg_class (-1 without legs),
 // body_class_or_7, leg_kind_or_8
 int build_body_class(const RosterTables& tables, const RosterBuild& build);
 int build_leg_class(const RosterTables& tables, const RosterBuild& build);

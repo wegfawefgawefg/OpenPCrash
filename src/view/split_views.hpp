@@ -1,6 +1,6 @@
 #pragma once
 // Split screen's views (decomp docs/port/render.md "Views and cameras", battle.md "Split-screen
-// VS"): viewport_layouts 0x25B920 by view count and viewports_from_mask. One view is the
+// VS"): viewport_layouts by view count and viewports_from_mask. One view is the
 // 576x448 safe rectangle; two are top and bottom strips of 576x220 in seat order; three and four
 // are quarters of 284x220, each seat in its own quarter (a quarter no seat has stays empty).
 #include <array>

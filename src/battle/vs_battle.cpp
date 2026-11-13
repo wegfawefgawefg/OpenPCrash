@@ -15,7 +15,8 @@ constexpr int slide_ticks = 30;
 // the battle's pad reads are at its 30 Hz update (the auto-repeat counts them)
 constexpr int battle_cadence = 30;
 
-// actor_has_weapon 0x9D63E: a weapon on a mount that is still fitted
+// actor_has_weapon: a weapon on a mount that is still fitted
+// decomp: actor_has_weapon 0x9D623
 bool has_weapon(const Fighter& f) {
     for (const Weapon& w : f.combat.weapons) {
         if (w.id != -1 && w.fitted) {

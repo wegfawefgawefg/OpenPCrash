@@ -1,5 +1,5 @@
-// A broken weapon's sparks and arcs (decomp src/hand/mech_part_assets.c actor_effects_update
-// 's weapon_state switch, src/hand/attachment_lights.c effect_arc_emission,
+// A broken weapon's sparks and arcs (decomp src/hand/mech_part_assets.c
+// actor_effects_update's weapon_state switch, src/hand/attachment_lights.c effect_arc_emission,
 // effect_arc_emission_between, effect_arc_emission_2, effect_arm_break,
 // effect_arm_break_follow; docs/port/effects.md "A fighter's effects", sets 0x26..0x2C).
 // The break itself is the world's (weapon_broken, event_weapon_break); the four states it walks

@@ -16,6 +16,14 @@ constexpr std::uint32_t reticle_flags = 0x1C;
 // the off-screen arrows and the cloak detector reach (hud_draw_radar's 75.0f), kept
 constexpr float radar_range = 75.0f;
 constexpr float ring_radius = 96.0f;
+// the radar's sprites (game_tex)
+constexpr int sprite_ring = 0x570;        // the reticle's ring, 160 x 160
+constexpr int sprite_arrow = 0x571;       // a solid arrow, coloured by distance or the cloak
+constexpr int sprite_arrow_frame = 0x573; // its outline, always white
+constexpr int sprite_tag_skull = 0x567;   // a beaten opponent's skull before its name
+constexpr int sprite_tag_1p = 0x5B8;      // 1P, 2P, 3P, 4P in turn (game_vs_tex)
+constexpr int sprite_tag_plate = 0x560;   // the name tag's frame
+constexpr int sprite_tag_bar = 0x56A;     // its durability bar, scaled by what is left
 
 std::uint32_t distance_colour(std::uint32_t base, float distance) {
     const int green = static_cast<int>(230.0f * distance / radar_range);
@@ -55,9 +63,9 @@ void hud_draw_radar(HudView& hud, Ui& ui, const World& world, const HudFrame& fr
         const float angle = std::atan2(-fx_float(d.y), side);
         const float x = cx + std::cos(angle) * ring_radius * frame.scale_x;
         const float y = cy + std::sin(angle) * ring_radius * frame.scale_y;
-        hud_sprite(ui, 0x571, x, y, one, one, angle - half_turn, 0x101,
+        hud_sprite(ui, sprite_arrow, x, y, one, one, angle - half_turn, 0x101,
                    distance_colour(0x80C80000, distance), reticle_flags);
-        hud_sprite(ui, 0x573, x, y, one, one, angle - half_turn, 0x101, 0x80FFFFFF,
+        hud_sprite(ui, sprite_arrow_frame, x, y, one, one, angle - half_turn, 0x101, 0x80FFFFFF,
                    reticle_flags);
     }
 
@@ -75,7 +83,7 @@ void hud_draw_radar(HudView& hud, Ui& ui, const World& world, const HudFrame& fr
     }
 
     // the ring
-    hud_sprite(ui, 0x570, cx, cy, one, one, 0, 0x101, 0x4CFFFFFF, reticle_flags);
+    hud_sprite(ui, sprite_ring, cx, cy, one, one, 0, 0x101, 0x4CFFFFFF, reticle_flags);
 
     // the cloak arrows: lit by the first visible fighter in camouflage that is alive, on screen
     // and within 75 (retail reads sense[-1] for the colour when there is none; unused then)
@@ -97,9 +105,10 @@ void hud_draw_radar(HudView& hud, Ui& ui, const World& world, const HudFrame& fr
         const float x = cx + arrow[0] * frame.scale_x;
         const float y = cy + arrow[1] * frame.scale_y;
         if (cloaked >= 0) {
-            hud_sprite(ui, 0x571, x, y, one, one, arrow[2], 0x101, lit, reticle_flags);
+            hud_sprite(ui, sprite_arrow, x, y, one, one, arrow[2], 0x101, lit, reticle_flags);
         }
-        hud_sprite(ui, 0x573, x, y, one, one, arrow[2], 0x101, 0xCCFFFFFF, reticle_flags);
+        hud_sprite(ui, sprite_arrow_frame, x, y, one, one, arrow[2], 0x101, 0xCCFFFFFF,
+                   reticle_flags);
     }
 }
 
@@ -142,14 +151,16 @@ void hud_fighter_tag_draw(HudView& hud, Ui& ui, const World& world, int viewer, 
             text_draw(ui, glyphs, static_cast<int>(x - 72.0f + 37.0f - static_cast<float>(len * 12)),
                       static_cast<int>(y - 18.0f - 12.0f), 1, 12, 12, colour, 15);
             if (entry.queue == 2) {
-                hud_sprite(ui, 0x567, x - 72.0f + 42.0f - static_cast<float>(len * 12) - 32.0f,
-                           y - 30.0f, 1, 1, 0, 0x103, 0xFFFFFFFF, 0);
+                hud_sprite(ui, sprite_tag_skull,
+                           x - 72.0f + 42.0f - static_cast<float>(len * 12) - 32.0f, y - 30.0f, 1,
+                           1, 0, 0x103, 0xFFFFFFFF, 0);
             }
         }
     } else if (f.controller != -1 && hud.scenes.vs_mode) {
         // a VS player without a pilot: 1P..4P
-        hud_sprite(ui, 0x5b8 + f.controller, x - 54.0f, y - 34.0f, 1, 1, 0, 0x103, 0xFFFFFFFF, 0);
+        hud_sprite(ui, sprite_tag_1p + f.controller, x - 54.0f, y - 34.0f, 1, 1, 0, 0x103,
+                   0xFFFFFFFF, 0);
     }
-    hud_sprite(ui, 0x560, x - 72.0f, y - 18.0f, 1, 1, 0, 0x101, colour, 0);
-    hud_sprite(ui, 0x56a, x - 66.0f, y - 13.0f, fill, 1, 0, 0x101, colour, 1);
+    hud_sprite(ui, sprite_tag_plate, x - 72.0f, y - 18.0f, 1, 1, 0, 0x101, colour, 0);
+    hud_sprite(ui, sprite_tag_bar, x - 66.0f, y - 13.0f, fill, 1, 0, 0x101, colour, 1);
 }

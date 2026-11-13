@@ -1,5 +1,5 @@
 // The schedule (schedule_* state 0x20, decomp src/o1/u_0357d7.c 0x357D7..0x3693D, the grid
-// schedule_grid_draw 0x3B0A6 and schedule_fade_step 0x3A1D9; docs/port/screens.md "The schedule
+// schedule_grid_draw and schedule_fade_step; docs/port/screens.md "The schedule
 // card"): five days of the three areas' tournaments from today, the columns sliding a day at a time
 // past the edges or five with the triggers, and a tournament's card on accept. Reached from the
 // garage hub and Club Wired; back to whichever it came from.
@@ -82,8 +82,9 @@ void day_numbers_draw(Ui& ui, ScheduleScreen& s) {
     }
 }
 
-// schedule_grid_draw 0x3B0A6: the cells, their rule marks and won marks, sliding or squeezing
+// schedule_grid_draw: the cells, their rule marks and won marks, sliding or squeezing
 // while a day scrolls past
+// decomp: schedule_grid_draw 0x35A1F
 void grid_draw(FrontEnd& fe, Ui& ui, ScheduleScreen& s) {
     if (s.anim == 0 && s.row < 3) {
         const int id = id_at(s, s.row, s.first + s.col);
@@ -381,7 +382,8 @@ void input(FrontEnd& fe, Ui& ui, ScheduleScreen& s) {
     }
 }
 
-// schedule_fade_step 0x3A1D9: one update of the days' numbers dimmed, then back to the input
+// schedule_fade_step: one update of the days' numbers dimmed, then back to the input
+// decomp: schedule_fade_step 0x366F0
 void fade_step(FrontEnd& fe, Ui& ui, ScheduleScreen& s) {
     if (s.fade_a > 0) {
         --s.fade_a;

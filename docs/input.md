@@ -399,8 +399,8 @@ with one read from a file for headless runs (`src/input/script_input.hpp`).
 // init input (SDL_Init needs SDL_INIT_GAMEPAD as well)
 GubsyRuntime gubsy;
 GubsyAppConfig gubsy_config;
-gubsy_config.window_title = "Phantom Crash";
-gubsy_config.data_root = <SDL_GetPrefPath("PhantomCrash", "PhantomCrash")> + "gubsy";
+gubsy_config.window_title = "OpenPCrash";
+gubsy_config.data_root = <SDL_GetPrefPath("OpenPCrash", "OpenPCrash")> + "gubsy";
 init_gubsy_runtime(gubsy, gubsy_config);
 register_input(gubsy);
 InputDevices devices;

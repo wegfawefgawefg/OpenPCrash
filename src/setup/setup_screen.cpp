@@ -68,8 +68,7 @@ void lay_out_buttons(Screen& screen) {
     const bool busy = working(screen) || screen.job.stage.load() == SetupStage::done;
     std::vector<Button> buttons;
     if (busy) {
-        if (screen.job.stage.load() != SetupStage::cooking &&
-            screen.job.stage.load() != SetupStage::done) {
+        if (screen.job.stage.load() != SetupStage::done) {
             buttons.push_back({Action::cancel, "CANCEL", {510, 664, 260, 66}});
         }
     } else {
@@ -135,6 +134,7 @@ void dashed_frame(SetupArt& art, SDL_FRect r, SetupColor color) {
 
 void draw(Screen& screen) {
     SetupArt& art = screen.art;
+    setup_art_fit(art);
     draw_setup_frame(art, "SETUP",
                      "Nothing is uploaded: your copy stays on this computer.",
                      "v" + build_label().substr(build_label().find(' ') + 1)); // fits the rise
@@ -216,8 +216,11 @@ int run_setup_screen(const Options& options) {
     static DialogSlot dialog;
     Screen screen;
     screen.dialog = &dialog;
-    if (!SDL_CreateWindowAndRenderer("Phantom Crash", options.width, options.height,
-                                     SDL_WINDOW_RESIZABLE, &screen.window, &screen.renderer)) {
+    // the display's own pixels on a Retina or Wayland HiDPI screen (setup_art_fit sizes the text
+    // to them)
+    if (!SDL_CreateWindowAndRenderer("OpenPCrash", options.width, options.height,
+                                     SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY,
+                                     &screen.window, &screen.renderer)) {
         std::fprintf(stderr, "setup: %s\n", SDL_GetError());
         return 1;
     }

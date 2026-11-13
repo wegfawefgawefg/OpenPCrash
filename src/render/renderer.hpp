@@ -200,6 +200,12 @@ struct Renderer {
     int screen_shift[2] = {0, 0};
 };
 
+// Vulkan's loader is there: on Windows vulkan-1.dll comes with the graphics drivers and is loaded
+// on the first Vulkan call (delay-loaded, cmake/mingw.cmake), so this is asked before any; false
+// after a box has told the player. The other systems link their loader (Linux) or bundle it (the
+// Mac): true
+bool vulkan_loader_check();
+// false after a box has told the player why, and what to do (a Windows release has no console)
 bool renderer_init(Renderer& renderer, SDL_Window* window, std::string& error);
 void renderer_shutdown(Renderer& renderer);
 // new options: the swapchain and targets are made again on the next frame when the present mode

@@ -1,6 +1,6 @@
 #pragma once
 // What the load screen (0x11) and the save menu (0x1F) share over src/save's three slots: reading
-// them, the slot card's summary (save_slot_draw_summary 0x6B6A0, save_slot_draw_details),
+// them, the slot card's summary (save_slot_draw_summary, save_slot_draw_details),
 // and the rest of save_commit_selected_load after the copy.
 #include "save/save.hpp"
 

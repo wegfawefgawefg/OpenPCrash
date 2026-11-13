@@ -1,6 +1,6 @@
 // Plus Tech's Chip Uplift view (decomp src/o1/u_02edc5.c: plus_tech_chip_list_draw,
-// plus_tech_chip_card_draw, step7 0x3267F, step10 0x32A0C, plus_tech_chip_list_update,
-// plus_tech_chip_confirm_update, step11 0x32708) and the centred-card carousel
+// plus_tech_chip_card_draw, plus_tech_screen_step7, _step10, plus_tech_chip_list_update,
+// plus_tech_chip_confirm_update, plus_tech_screen_step11) and the centred-card carousel
 // Wild Machines' Chip pages copy.
 #include "audio/sound_cues.hpp"
 #include "screens/flow/front_end.hpp"

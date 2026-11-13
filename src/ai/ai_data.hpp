@@ -13,7 +13,7 @@ inline constexpr int ai_prob_rows = 42;
 inline constexpr int ai_profiles = 12;
 
 struct AiTables {
-    // ai_transition_probs_normal / _alternate 0x205E80 (battle_phase 1): 5 chances of 255
+    // ai_transition_probs_normal / _alternate (battle_phase 1): 5 chances of 255
     std::array<std::array<int, 5>, ai_prob_rows> probs_normal{}, probs_alternate{};
     // ai_selection_profiles: [profile][why][durability band] -> a probs row
     std::array<std::array<std::array<int, 5>, 5>, ai_profiles> selection{};

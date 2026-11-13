@@ -61,7 +61,8 @@ void fighter_target(const Fighter& f, float out[3]) {
     out[1] += fx_float(f.radius);
 }
 
-// camera_view4_front 0x7E696: 8 ahead of the fighter along its view yaw, up 1.65 + 2 |pitch|
+// camera_view4_front: 8 ahead of the fighter along its view yaw, up 1.65 + 2 |pitch|
+// decomp: camera_view4_front 0x7EC92
 CameraPose front_camera(const Fighter& f) {
     CameraPose pose;
     pose.looks_at = true;

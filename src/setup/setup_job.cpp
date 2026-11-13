@@ -138,8 +138,17 @@ void work(SetupJob& job) {
     cook.data_dir = job.data_dir;
     cook.cooked_dir = job.cooked_dir;
     cook.quiet = true;
+    cook.cancel = &job.progress.cancel;
     CookReport report;
-    if (!cook_all(cook, report, error)) {
+    const bool cooked = cook_all(cook, report, error);
+    if (job.progress.cancel.load()) {
+        // a stopped setup isn't a finished one: without the manifest the screen comes back next
+        // time (the packs already written stay, fresh, and aren't cooked again)
+        fs::remove(fs::path(job.data_dir) / "manifest.sexp", made);
+        job.stage = SetupStage::stopped;
+        return;
+    }
+    if (!cooked) {
         const bool full = free_bytes(job.cooked_dir) < (256u << 20);
         if (full) {
             fs::remove(fs::path(job.data_dir) / "manifest.sexp", made);

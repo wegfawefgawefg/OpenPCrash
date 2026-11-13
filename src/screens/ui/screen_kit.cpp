@@ -1,5 +1,5 @@
 // The screens' shared pieces (decomp src/od/u_06c3e0.c slides, src/o1/u_03c51a.c pop timers,
-// src/hand/u_0bd620.c pop scales, SpriteRow::draw_scaled and draw_anchored 0xBBE73, the
+// src/hand/u_0bd620.c pop scales, SpriteRow::draw_scaled and draw_anchored, the
 // event scripts over a screen); the numbers, day, money and banners are screen_header.cpp's.
 #include "screens/ui/screen_kit.hpp"
 

@@ -145,23 +145,6 @@ void leave_to(FrontEnd& fe, Ui& ui, WildScreen& w, int result) {
 
 using namespace wild;
 
-int wild_price(const PartTables& t, int kind, int id, int tune, bool selling_it) {
-    const int price = shop_item_price(t, kind, id, tune);
-    if (!selling_it || (kind == 5 && id == 0x2d)) {
-        return price;
-    }
-    return static_cast<int>(static_cast<float>(price) * 0.5f);
-}
-
-bool wild_paint_in_use(const World& world, int kind, int id) {
-    for (const Garage& g : world.garages.garages) {
-        if ((kind == 6 && g.color == id) || (kind == 7 && g.sticker == id)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 namespace {
 
 // an OK box's way on, and a yes/no's yes

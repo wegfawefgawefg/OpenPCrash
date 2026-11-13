@@ -1,4 +1,4 @@
-// The Chip carousel and the Uplift card (decomp src/o1/u_02edc5.c 0x2F690,
+// The Chip carousel and the Uplift card (decomp src/o1/u_02edc5.c plus_tech_chip_list_draw,
 // plus_tech_chip_card_draw, plus_tech_screen_step10).
 #include "screens/garage/chip_carousel.hpp"
 

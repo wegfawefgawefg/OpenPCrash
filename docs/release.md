@@ -18,7 +18,9 @@ scripts/release.sh --mac               # on an Apple Silicon Mac: the Mac build 
 It leaves, in `build-release/`:
 
 - `OpenPCrash-linux/`, `OpenPCrash-windows/`, `OpenPCrash-mac/`: what a player unpacks, and a zip
-  of each beside it, `OpenPCrash-<version>-<system>.zip`;
+  of each beside it, `OpenPCrash-<version>-<system>.zip`, with a copy under a name without the
+  stamp, `OpenPCrash-<system>.zip`, the name GitHub Releases' `latest/download/` links (the site's
+  download buttons) ask for;
 - `symbols/<version>/`: the debug symbols taken out of them (`.debug` files, the Windows `.pdb`,
   the Mac's `.dSYM`s), for making sense of a crash later;
 - `linux-build/`, `windows-build/`, `mac-build/`: the build folders, kept so the next release
@@ -47,10 +49,12 @@ The game's own files and nothing else:
 - `shaders/*.spv`, compiled from the GLSL in `assets/shaders`;
 - the port's own `assets/` as git has them (the widescreen anchors, the Jost font for the
   first-run screen), not the shader sources;
-- `README.txt` for players, `THIRD-PARTY.txt`, `VERSION.txt` and `licenses/`: every library's
-  license from its fetched sources (SDL 3, SDL_image, SDL_ttf with FreeType, HarfBuzz and PlutoSVG,
-  SDL_mixer, Gubsy, GView, GLayout, gfxp, gsexp, cgltf, bc7enc_rdo), pl_mpeg's, Jost's OFL, and on
-  the Mac MoltenVK's and the Vulkan loader's.
+- `README.txt` for players, `THIRD-PARTY.txt`, `VERSION.txt`, `LICENSE.txt` (the game's own,
+  GPLv3, the repo's `LICENSE`) and `licenses/`: every library's license from its fetched sources
+  (SDL 3, SDL_image, SDL_ttf with FreeType, HarfBuzz and PlutoSVG, SDL_mixer, Gubsy, cgltf,
+  bc7enc_rdo), pl_mpeg's, Jost's OFL, and on the Mac MoltenVK's and the Vulkan loader's. GView,
+  GLayout, gfxp and gsexp are GPLv3 by the same author, but the pinned commits predate their
+  LICENSE files, so each gets Gubsy's copy of the text (not a pin bump, which would bring code).
 
 Never `data/`, `cooked/` or anything from the disc or the XBE. Two checks stop the release:
 
@@ -69,16 +73,28 @@ Never `data/`, `cooked/` or anything from the disc or the XBE. Two checks stop t
 
 A release build (`-DPHANTOMCRASH_RELEASE=ON`, `src/game_paths.hpp`) reads `assets/` and
 `shaders/` beside the executable (`SDL_GetBasePath`, which is `Contents/Resources` in the Mac app)
-and keeps everything else in the per-user folder (`SDL_GetPrefPath("PhantomCrash", "PhantomCrash")`):
+and keeps everything else in the per-user folder (`SDL_GetPrefPath("OpenPCrash", "OpenPCrash")`):
 `data/` and `cooked/` made from the player's disc, `saves/`, `gubsy/` (settings and bindings) and
 `logs/`. `--data` and `--cooked` still override. A development build keeps reading the checkout's
-`data/`, `cooked/` and `assets/` and the build folder's shaders.
+`data/`, `cooked/` and `assets/` and the build folder's shaders (its saves, settings and logs are
+in the per-user folder too).
+
+The folder was `PhantomCrash/PhantomCrash` before 2026-11-13. The first start of a newer build
+moves it over (`user_folder_migrate`, src/user_folder.hpp, run from `run_log_start`): a rename,
+or a copy and the old one removed across drives, said in the run log. When both hold files the
+old one is left as it is, and the log says so. The window, SDL's app metadata
+(`org.openpcrash.OpenPCrash`, the Mac app's bundle id) and Vulkan's application name say
+OpenPCrash; the targets, the `PHANTOMCRASH_*` variables and gubsy's settings keys keep their
+names.
 
 ## The first run
 
 With no `data/manifest.sexp`, the game opens the setup screen (`src/setup`, docs/assets.md "The
 extractor"): drop or browse to the disc image or game folder, and it extracts and cooks on a worker
-thread, then starts the game. `pc_extract --disc` reads the same three forms.
+thread, then starts the game. `pc_extract --disc` reads the same three forms. Cancel stops it at
+any point, the cook included (`CookOptions::cancel`); a stopped setup leaves no manifest, so the
+screen comes back next time. The window asks for the display's own pixels and the text is
+rendered at them (`setup_art_fit`), sharp on a Retina or HiDPI display.
 
 ## The Linux bundle
 
@@ -92,10 +108,14 @@ Wayland, PipeWire, PulseAudio and ALSA at run time.
 Cross-compiled with [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (MIMH's pin,
 `cmake/mingw-w64.cmake`), everything static in one `OpenPCrash.exe` with libc++ and libunwind
 (`cmake/mingw.cmake`). The Vulkan headers are SDL's Khronos copy and `vulkan-1.dll`'s import
-library is written from them; the loader comes with the GPU drivers and is never bundled. The
+library is written from them; the loader comes with the GPU drivers and is never bundled. It is
+delay-loaded (`-Wl,--delayload=vulkan-1.dll`, as MIMH), loaded on the first Vulkan call: main
+looks for it first (`vulkan_loader_check`, src/render/vk_device.cpp), so a machine without a
+Vulkan driver gets the game's own box saying so and to install the graphics card's driver, not
+the system's missing-DLL box; a renderer that fails to start says why in the same box. The
 manifest makes UTF-8 the code page (`src/windows/`), the main thread gets an 8 MB stack, and a
 release is a GUI program (`-mwindows`): its output goes to the run log in the per-user folder
-(`%APPDATA%\PhantomCrash\PhantomCrash\logs`). MIMH's two fixes to the gubsy and gview pins for
+(`%APPDATA%\OpenPCrash\OpenPCrash\logs`). MIMH's two fixes to the gubsy and gview pins for
 Windows are applied as they are fetched (`cmake/patches/`).
 
 ## The Mac build
@@ -134,4 +154,13 @@ Vulkan loader, built from Khronos' sources, and MoltenVK's release (arm64 half),
   Nothing has run on Windows or a Mac.
 - Follow-ups are in docs/backlog.md, "Release and first run".
 - No icon for the executable or the app yet.
-- Hosting: the zips aren't uploaded anywhere; the site (`site/`) links placeholder addresses.
+- Hosting: the zips aren't uploaded anywhere yet; the site's buttons point at the public repo's
+  GitHub Releases (`releases/latest/download/OpenPCrash-<system>.zip`).
+
+## The public repo
+
+https://github.com/wegfawefgawefg/OpenPCrash (GPLv3, public since 2026-11-13) is a separate history: snapshots of
+this private repo, never its commits (they carry session links and work notes). To publish a new snapshot: clone the
+public repo into a scratch folder, replace its tree with `git archive HEAD` of this repo (keep its `.git`), check the
+tree has no local paths, private names or disc files (`grep -r -E '/media/|/home/'`, no `data/` or `cooked/`), commit
+under the usual name with a plain message, and push. Only when the owner asks.

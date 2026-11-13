@@ -33,6 +33,12 @@ endif()
 set(Vulkan_INCLUDE_DIR "${mingw_khronos}" CACHE PATH "" FORCE)
 set(Vulkan_LIBRARY "${mingw_vulkan_lib}" CACHE FILEPATH "" FORCE)
 
+# vulkan-1.dll is only there with Vulkan drivers, so it is loaded late, on the first Vulkan call,
+# after main has looked for it (vulkan_loader_present): a machine without it gets the game's own
+# plain message instead of the system's missing-DLL box (as Mans In My House's cmake/mingw.cmake)
+target_link_options(phantomcrash PRIVATE -Wl,--delayload=vulkan-1.dll)
+target_link_libraries(phantomcrash PRIVATE delayimp)
+
 # one executable needing nothing but Windows: libc++ and libunwind linked in (every library is
 # static on Windows, platform.cmake)
 target_link_options(phantomcrash PRIVATE -static)

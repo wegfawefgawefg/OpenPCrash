@@ -3,8 +3,8 @@
 // keep_sv_screen_step4, keep_sv_screen_draw, keep_sv_row_draw): the VS
 // Scoobees kept in storage (src/save/vs_saves.hpp), five at a time on a sliding row, and a side
 // menu: the list, SAVE (a whole machine picked in the hangar's keep SV mode, 0xE) and EXIT. A
-// kept machine can be looked at on the spec page (0x24) or deleted. Answers (state_keep_sv_update)
-// : 0 the system menu, 1 the hangar, 3 the spec page.
+// kept machine can be looked at on the spec page (0x24) or deleted. Answers
+// (state_keep_sv_update): 0 the system menu, 1 the hangar, 3 the spec page.
 #include "save/vs_saves.hpp"
 #include "screens/ui/screen_text.hpp"
 

@@ -132,6 +132,13 @@ copy_licenses() { # build licenses_dir
         done < <(find "$deps/${lib%-build}-src/external/$name" -maxdepth 2 -type f \
                      \( -iname 'FTL.TXT' -o -iname 'LICENSE*' -o -iname 'COPYING*' \) 2>/dev/null | sort)
     done
+    # the owner's libraries are GPLv3, as the game is; the pinned commits of GView, GLayout, gfxp
+    # and gsexp predate their LICENSE files, so each takes Gubsy's copy of the same text
+    for name in Gubsy GView GLayout gfxp gsexp; do
+        if [[ ! -f "$to/$name.txt" ]]; then
+            cp "$deps/gubsy-src/LICENSE" "$to/$name.txt"
+        fi
+    done
     cp "$repo_root/third_party/pl_mpeg/LICENSE" "$to/pl_mpeg.txt"
     cp "$repo_root/assets/fonts/OFL.txt" "$to/Jost-OFL.txt"
 }
@@ -145,6 +152,7 @@ lay_out_files() { # build bundle [notes]
     mkdir -p "$bundle/shaders"
     cp "$build"/shaders/*.spv "$bundle/shaders/"
     cp "$repo_root/scripts/release/README.txt" "$repo_root/scripts/release/THIRD-PARTY.txt" "$notes/"
+    cp "$repo_root/LICENSE" "$notes/LICENSE.txt" # the game's own, GPLv3
     copy_licenses "$build" "$notes/licenses"
     printf '%s %s\n' "$product" "$version" > "$notes/VERSION.txt"
 }
@@ -167,7 +175,7 @@ check_bundle() { # bundle
         esac
         case "$rel" in
             "$product"|"$product.exe"|*.so|*.so.*|*.dll|*.dylib) ;;
-            shaders/*.spv|README.txt|THIRD-PARTY.txt|VERSION.txt|licenses/*.txt) ;;
+            shaders/*.spv|README.txt|THIRD-PARTY.txt|VERSION.txt|LICENSE.txt|licenses/*.txt) ;;
             "$product.app/Contents/Info.plist"|"$product.app/Contents/PkgInfo") ;;
             "$product.app/Contents/MacOS/$product"|"$product.app/Contents/_CodeSignature/"*) ;;
             "$product.app/Contents/Frameworks/"*.dylib) ;;
@@ -265,6 +273,8 @@ for platform in "${platforms[@]}"; do
     check_paths "$bundle"
     zip_name="$product-$version-$platform.zip"
     (cd "$out" && rm -f "$product"-*-"$platform".zip && zip -q -r -X "$zip_name" "$product-$platform")
+    # the same zip under a name without the stamp, for GitHub Releases' latest/download links
+    cp "$out/$zip_name" "$out/$product-$platform.zip"
     built+=("$out/$zip_name ($(du -h "$out/$zip_name" | cut -f1); folder $(du -sh "$bundle" | cut -f1))")
 done
 echo "release: done. Symbols in $symbols. Nothing was uploaded."

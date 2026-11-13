@@ -24,6 +24,7 @@
 #include "state.hpp"
 #include "story/rumble.hpp"
 #include "talk/talk_player.hpp"
+#include "user_folder.hpp"
 #include "viewer_run.hpp"
 
 #include <SDL3/SDL.h>
@@ -398,7 +399,8 @@ int main(int argc, char** argv) {
         return run_talk_player(state.options);
     }
 
-    // init the run log (src/run_log.hpp): this run's SDL_Log lines in a file under the pref path
+    // init the run log (src/run_log.hpp): this run's SDL_Log lines in a file in the per-user folder
+    SDL_SetAppMetadata("OpenPCrash", build_info().version, "org.openpcrash.OpenPCrash");
     run_log_start(argc, argv);
     SDL_Log("%s", build_label().c_str());
 
@@ -408,6 +410,12 @@ int main(int argc, char** argv) {
         return 1;
     }
     virtual_pads_attach();
+    // no Vulkan (Windows without a Vulkan driver): said plainly, before the setup or the window
+    if (!vulkan_loader_check()) {
+        run_log_stop();
+        SDL_Quit();
+        return 1;
+    }
     // first run: no data/ yet, so the setup screen reads the player's own disc into it
     // (src/setup); a quit there ends the run
     if (!setup_data_ready(state.options.data_dir) && run_setup_screen(state.options) != 0) {
@@ -415,7 +423,7 @@ int main(int argc, char** argv) {
         SDL_Quit();
         return 0;
     }
-    SDL_Window* window = SDL_CreateWindow("Phantom Crash", state.options.width,
+    SDL_Window* window = SDL_CreateWindow("OpenPCrash", state.options.width,
                                           state.options.height, SDL_WINDOW_RESIZABLE);
     if (!window) {
         std::fprintf(stderr, "window: %s\n", SDL_GetError());
@@ -444,10 +452,10 @@ int main(int argc, char** argv) {
     // files in the user's folder (PHANTOMCRASH_GUBSY_ROOT overrides it, for headless runs)
     GubsyRuntime gubsy;
     GubsyAppConfig gubsy_config;
-    gubsy_config.window_title = "Phantom Crash";
+    gubsy_config.window_title = "OpenPCrash";
     if (const char* root = std::getenv("PHANTOMCRASH_GUBSY_ROOT")) {
         gubsy_config.data_root = root;
-    } else if (char* prefs = SDL_GetPrefPath("PhantomCrash", "PhantomCrash")) {
+    } else if (char* prefs = SDL_GetPrefPath(user_folder_org, user_folder_app)) {
         gubsy_config.data_root = std::string(prefs) + "gubsy";
         SDL_free(prefs);
     }

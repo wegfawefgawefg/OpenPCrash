@@ -348,7 +348,7 @@ void dealer_step(FrontEnd& fe, Ui& ui) {
         load(fe, ui, d);
         fe.screen.step = step_fade_in;
         break;
-    case step_fade_in: // dealer_screen_fade_in 0x3B321
+    case step_fade_in: // dealer_screen_fade_in
         if (d.from == app_spec_scoobee) {
             dealer_machine_menu_draw(ui, d);
         }

@@ -220,7 +220,7 @@ void free_play_spawn(FrontEnd& fe, Ui& ui);
 void free_play_step(FrontEnd& fe, Ui& ui);
 
 // small pieces these screens share (screen_kit.cpp)
-// SpriteRow::draw_scaled and draw_anchored 0xBBE73 (kind 0: about the sprite's middle)
+// SpriteRow::draw_scaled and draw_anchored (kind 0: about the sprite's middle)
 void row_scaled(Ui& ui, SpriteSlot row, float sx, float sy);
 void row_anchored(Ui& ui, SpriteSlot row, float sx, float sy);
 // a table's row (a copy, sprite -1 when missing)

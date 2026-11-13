@@ -1,6 +1,6 @@
 // The hangar's steps (decomp src/o1/u_01c789.c: hangar_screen_update, hangar_fade_in,
 // hangar_select_update, hangar_garage_menu_update, the unlock hangar_unlock_confirm_update,
-// the boxes 0x1E1B1.., hangar_screen_leave, hangar_screen_destroy). Answers
+// the boxes hangar_message_*, hangar_screen_leave, hangar_screen_destroy). Answers
 // (state_hangar_update): 0 the garage hub, 1 the area select, 2 assemble, 3 the spec page,
 // 4 and 6 keep SV, 5 the test drive.
 #include "screens/garage/hangar.hpp"
@@ -291,8 +291,8 @@ void unlock_step(FrontEnd& fe, Ui& ui, HangarScreen& h) {
     }
 }
 
-// the boxes: hangar_message_not_ready (boarding, and keep SV's refusal), _back 0x1E2FE,
-// _check 0x1E1B1, _no_weapon 0x1E201, hangar_unlock_done_message and _refused 0x1E9D9
+// the boxes: hangar_message_not_ready (boarding, and keep SV's refusal), _back, _check,
+// _no_weapon, hangar_unlock_done_message and hangar_unlock_refused_message
 void box_step(FrontEnd& fe, Ui& ui, HangarScreen& h) {
     MsgBox& box = h.boxes[h.box];
     const bool unlock = h.box == b_unlocked || h.box == b_no_money;

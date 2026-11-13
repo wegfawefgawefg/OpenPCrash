@@ -2,7 +2,7 @@
 // The area picture's TV-static switch (decomp src/o1/u_012ff5.c area_plate_play,
 // keyframed_sprite_draw), which area select's area page and VS setup's area page both
 // play, and Random's cycling pictures (area_cycle_pictures). The four pieces' key tracks
-// (area_plate_old_tracks, _new 0x1DAC78, _static 0x1DACB4, _static2 0x1DACF0) are read
+// (area_plate_old_tracks, _new_tracks, _static_tracks, _static2_tracks) are read
 // from the area_select layout file, where the extractor wrote the words they point into.
 #include "screens/ui/ui.hpp"
 

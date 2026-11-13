@@ -121,7 +121,7 @@ void tournament_enter(Story& story, const StoryTables& tables, int area) {
 
 // decomp: money_add 0xB1E3B
 void money_add(Story& story, std::int64_t amount) {
-    // money_add 0xB1EF1: the amount and the result both held to 99,999,999
+    // money_add: the amount and the result both held to 99,999,999
     constexpr std::int64_t money_max = 99999999;
     amount = amount < -money_max ? -money_max : amount > money_max ? money_max : amount;
     std::int64_t money = static_cast<std::int64_t>(story.money) + amount;

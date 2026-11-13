@@ -15,6 +15,8 @@ constexpr std::uint32_t bar_green = 0xFF32FF8C;
 constexpr std::uint32_t bar_red = 0xFFC04040;
 constexpr std::uint32_t charge_yellow = 0xFFFFC823;
 constexpr std::uint32_t counter_white = 0xFFF0F0F0;
+// day_draw_at's own DAY- label (common_2d)
+constexpr int sprite_day_label = 0xEA7;
 
 struct MountLayout {
     const HudWeaponLayout* rows = nullptr;
@@ -38,7 +40,7 @@ MountLayout mount_layout(const HudView& hud, int mount) {
     }
 }
 
-// digits_split 0x6D3E0: `count` digits, most significant first, each clamped 0..9
+// digits_split: `count` digits, most significant first, each clamped 0..9
 // decomp: digits_split 0x6D3C5
 void digits_split(int value, int count, int out[4]) {
     value = std::max(value, 0);
@@ -280,10 +282,10 @@ void draw_counters(HudView& hud, Ui& ui, const World& world, const Fighter& f,
     hud_row_draw(ui, rows[row_money]);
     hud_number(ui, number_right | number_commas, s.score_shown, right_of(row_money) + 88,
                y_of(row_money), 0x108, counter_white, 9, 10);
-    // day_draw_at: its own DAY- label (0xEA7) at the row's right edge, day + 1 two digits 57 on
+    // day_draw_at: its own DAY- label at the row's right edge, day + 1 two digits 57 on
     const int day_x = right_of(row_day);
-    hud_sprite(ui, 0xea7, static_cast<float>(day_x), static_cast<float>(y_of(row_day)), 1, 1, 0,
-               0x108, 0xFFFFFFFF, 0);
+    hud_sprite(ui, sprite_day_label, static_cast<float>(day_x), static_cast<float>(y_of(row_day)),
+               1, 1, 0, 0x108, 0xFFFFFFFF, 0);
     hud_number(ui, number_right | number_zeros, world.story.day + 1, day_x + 57, y_of(row_day),
                0x108, 0xFFFFFFFF, 2, 1);
     // TIME: Battle.frame as hh:mm:ss after the label

@@ -1,8 +1,8 @@
 #pragma once
 // A fighter's own sounds (decomp src/od/u_0933f0.c, docs/port/audio.md "Who uses which bank"):
 // actor_sounds_update with the legs by leg_sound_table (legs_sound_two,
-// legs_sound_many, legs_sound_roller, legs_sound_hover) run on a footstep, fighter_leg_sound
-// 's dodges, actor_landing_sound, actor_contact_sound, the hum, the broken
+// legs_sound_many, legs_sound_roller, legs_sound_hover) run on a footstep, fighter_leg_sound's
+// dodges, actor_landing_sound, actor_contact_sound, the hum, the broken
 // arm's crackle, fighter_turn_sound, the score and the low armour; and the motion code's
 // own: the jump (actor_try_jump, sv_motion_state_4), the dive (actor_air_control)
 // and the fall (actor_phase_fall_update). Retail plays them in each fighter's

@@ -192,7 +192,7 @@ void walk_node(Walk& walk, int index, const MotionClip* clip, int mode) {
             }
         }
     } else if (node.flags & node_body_set) {
-        // sv_pose_flagged_node_sample 0xAD4B8: the body set's slot by flag, its first track
+        // sv_pose_flagged_node_sample: the body set's slot by flag, its first track
         const int slot = node.flags & node_body_set_0   ? 0
                          : node.flags & node_body_set_1 ? 1
                          : node.flags & node_body_set_3 ? 3

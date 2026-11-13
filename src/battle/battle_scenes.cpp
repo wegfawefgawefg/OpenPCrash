@@ -394,7 +394,7 @@ bool battle_scene_step(World& world, Fighter& f) {
     return took;
 }
 
-// decomp: actor_step 0x756F3
+// decomp: actor_door_check 0x821CD
 void battle_door_check(World& world, Fighter& f) {
     BattleState& b = world.battle_state;
     if (!b.live) {

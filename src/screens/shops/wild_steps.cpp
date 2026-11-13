@@ -1,7 +1,7 @@
 // Wild Machines' modes, their input steps (decomp src/o1/u_0201ab.c): the parts tabs and list
 // for buying and selling modules, colours and stickers, the Chips carousel and its confirm card,
-// and the used Scoobees with their submenu and the garage wheel. The screen around them, its boxes
-// and mode changes, is wild_machines.cpp.
+// and the used Scoobees with their submenu and the garage wheel; the prices and the paints in use.
+// The screen around them, its boxes and mode changes, is wild_machines.cpp.
 #include "screens/shops/wild_steps.hpp"
 
 #include "audio/sound_cues.hpp"
@@ -444,3 +444,20 @@ void garages_step(FrontEnd& fe, Ui& ui, WildScreen& w) {
 }
 
 } // namespace wild
+
+int wild_price(const PartTables& t, int kind, int id, int tune, bool selling_it) {
+    const int price = shop_item_price(t, kind, id, tune);
+    if (!selling_it || (kind == 5 && id == 0x2d)) {
+        return price;
+    }
+    return static_cast<int>(static_cast<float>(price) * 0.5f);
+}
+
+bool wild_paint_in_use(const World& world, int kind, int id) {
+    for (const Garage& g : world.garages.garages) {
+        if ((kind == 6 && g.color == id) || (kind == 7 && g.sticker == id)) {
+            return true;
+        }
+    }
+    return false;
+}

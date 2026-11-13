@@ -162,7 +162,7 @@ int tournament_rule_tier_now(const World& world) {
     return rule < 0 ? -1 : tournament_rule_tier(rule);
 }
 
-// decomp: pickups_draw 0x69CD2
+// decomp: pickup_find_nearest 0x67878
 int ai_pickup_nearest(const World& world, FxVec3 position, int slot, Fx range) {
     return pickup_find_nearest(world.stage, position, slot, range);
 }

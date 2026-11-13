@@ -198,14 +198,28 @@ void vk_barrier(VkCommandBuffer command, VkImage image, VkImageAspectFlags aspec
                          &barrier);
 }
 
-bool renderer_init(Renderer& renderer, SDL_Window* window, std::string& error) {
+namespace {
+
+// Vulkan didn't start: the reason in the log and a box a player reads (a Windows release has no
+// console), with what to do
+void vulkan_failure_box(const std::string& reason, SDL_Window* window) {
+    std::fprintf(stderr, "vulkan: %s\n", reason.c_str());
+    SDL_Log("vulkan: %s", reason.c_str());
+    const std::string text =
+        "OpenPCrash draws with Vulkan, and it couldn't start here: " + reason +
+        ".\n\nVulkan comes with your graphics card's driver. Install the latest driver from the "
+        "card's maker (NVIDIA, AMD or Intel), then start OpenPCrash again.";
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "OpenPCrash", text.c_str(), window);
+}
+
+bool start_vulkan(Renderer& renderer, SDL_Window* window, std::string& error) {
     renderer.vk = new RendererState;
     RendererState& vk = *renderer.vk;
     vk.window = window;
 
     // instance, with what SDL needs for the window's surface
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    app.pApplicationName = "Phantom Crash";
+    app.pApplicationName = "OpenPCrash";
     // 1.1 for the negative viewport height (docs/shaders.md, "Conventions")
     app.apiVersion = VK_API_VERSION_1_1;
     Uint32 extension_count = 0;
@@ -326,6 +340,28 @@ bool renderer_init(Renderer& renderer, SDL_Window* window, std::string& error) {
         return false;
     }
     return true;
+}
+
+} // namespace
+
+bool vulkan_loader_check() {
+#ifdef _WIN32
+    SDL_SharedObject* loader = SDL_LoadObject("vulkan-1.dll");
+    if (!loader) {
+        vulkan_failure_box("this computer has no Vulkan driver (vulkan-1.dll is missing)", nullptr);
+        return false;
+    }
+    SDL_UnloadObject(loader);
+#endif
+    return true;
+}
+
+bool renderer_init(Renderer& renderer, SDL_Window* window, std::string& error) {
+    if (start_vulkan(renderer, window, error)) {
+        return true;
+    }
+    vulkan_failure_box(error, window);
+    return false;
 }
 
 void renderer_shutdown(Renderer& renderer) {

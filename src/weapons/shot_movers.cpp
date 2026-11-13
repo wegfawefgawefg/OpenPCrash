@@ -1,10 +1,9 @@
 // Shots in flight (decomp src/od/u_097660.c): the launchers projectile_update_straight,
-// _rotating 0x97A49, _guided 0x97CC2, and the movers _straight_next 0x979AA, _rotating_next
-// projectile_update_rotating_next, _guided_next 0x97E9A, _guided_next2 0x980F7 with
-// projectile_accelerate (docs/port/weapons.md "Shots in flight"). Velocities are per tick and moved
-// `ticks` times an update, so at 60 Hz once a step (sixty.md R9); the forces in a step get the
-// half-step correction (R10): `+ dv / 2` for the movers that change the velocity first, `- dv / 2`
-// for the guided ones that move first.
+// _rotating and _guided, and the movers _straight_next, _rotating_next, _guided_next and
+// _guided_next2, with projectile_accelerate (docs/port/weapons.md "Shots in flight").
+// Velocities are per tick and moved `ticks` times an update, so at 60 Hz once a step (sixty.md
+// R9); the forces in a step get the half-step correction (R10): `+ dv / 2` for the movers that
+// change the velocity first, `- dv / 2` for the guided ones that move first.
 #include "weapons/weapons.hpp"
 #include "world/world.hpp"
 

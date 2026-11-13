@@ -1,4 +1,4 @@
-// pickup_apply's fighter side, actor_heal_fraction 0x6AC5A and
+// pickup_apply's fighter side, actor_heal_fraction and
 // actor_ammo_refill_fraction (decomp src/hand/falling_debris.c). Integer arithmetic gives
 // retail's float results: max x 0.1f and the like round up from the exact product, so the
 // truncations land on the same whole numbers.

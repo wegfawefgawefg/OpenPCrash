@@ -1,5 +1,6 @@
 #include "render/vk_internal.hpp"
 
+#include <SDL3_image/SDL_image.h>
 #include <algorithm>
 
 namespace {
@@ -293,4 +294,55 @@ bool vk_fit_window(RendererState& vk, Renderer& renderer) {
     renderer.width = width;
     renderer.height = height;
     return true;
+}
+
+void renderer_set_options(Renderer& renderer, const RenderOptions& options) {
+    RendererState& vk = *renderer.vk;
+    const RenderOptions old = vk.options;
+    renderer.options = options;
+    vk.options = options;
+    if (old.vsync != options.vsync || old.render_scale != options.render_scale) {
+        vk.swap_stale = true;
+    }
+    if (old.anisotropy != options.anisotropy) {
+        // the samplers again, and every texture set that holds one
+        vkDeviceWaitIdle(vk.device);
+        for (auto& [key, sampler] : vk.samplers) {
+            vkDestroySampler(vk.device, sampler, nullptr);
+        }
+        vk.samplers.clear();
+        vk_reset_descriptors(vk);
+    }
+}
+
+// the output's pixels to a PNG (it waits for the frame)
+bool vk_save_capture(RendererState& vk, const std::string& path) {
+    const VkDeviceSize size = static_cast<VkDeviceSize>(vk.output.width) * vk.output.height * 4;
+    GpuBuffer readback;
+    if (!vk_create_mapped_buffer(vk, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, readback)) {
+        return false;
+    }
+    VkCommandBuffer command = vk_begin_once(vk);
+    VkBufferImageCopy copy{};
+    copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    copy.imageExtent = {static_cast<std::uint32_t>(vk.output.width),
+                        static_cast<std::uint32_t>(vk.output.height), 1};
+    vkCmdCopyImageToBuffer(command, vk.output.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           readback.buffer, 1, &copy);
+    bool ok = vk_end_once(vk, command);
+    if (ok) {
+        std::vector<std::uint8_t> pixels(static_cast<const std::uint8_t*>(readback.mapped),
+                                         static_cast<const std::uint8_t*>(readback.mapped) + size);
+        // opaque, the way the screen shows it
+        for (std::size_t i = 3; i < pixels.size(); i += 4) {
+            pixels[i] = 255;
+        }
+        SDL_Surface* surface =
+            SDL_CreateSurfaceFrom(vk.output.width, vk.output.height, SDL_PIXELFORMAT_ABGR8888,
+                                  pixels.data(), vk.output.width * 4);
+        ok = surface && IMG_SavePNG(surface, path.c_str());
+        SDL_DestroySurface(surface);
+    }
+    vk_destroy_buffer(vk, readback);
+    return ok;
 }

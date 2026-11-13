@@ -15,7 +15,7 @@ constexpr int music_owned_counted = 0xC0;
 } // namespace
 
 void story_boot(Story& story, const StoryTables& tables) {
-    // events cleared (events_done_clear 0xBA1A1)
+    // events cleared (events_done_clear)
     for (std::uint32_t& word : story.events_done) {
         word = 0;
     }

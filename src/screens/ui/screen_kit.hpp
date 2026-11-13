@@ -22,7 +22,7 @@ inline int task_timer_get(const Ui& ui) {
 void pop_scale_peak(float out[2], int rise, int end, int t, float peak, float start);
 void box_pop_scale(float out[2], int rise, int end, int t);
 
-// a Timer for timer_sprite_* (0x3C634, timer_sprite_start, timer_sprite_pop_draw): a plate popping
+// a Timer for timer_sprite_* (timer_sprite_init, _start, _pop_draw): a plate popping
 // open, optionally moving from (a, b) to its place while it opens
 struct PopTimer {
     int started = -1;
@@ -37,7 +37,7 @@ void pop_timer_start(Ui& ui, PopTimer& t, float c, float d, bool moves, int a, i
 // true while it runs
 bool pop_timer_draw(Ui& ui, const PopTimer& t, int x, int y, int blend);
 
-// sprite_slide_init / sprite_slide_draw (0x6C460, sprite_slide_draw): sprites sliding to targets,
+// sprite_slide_init / sprite_slide_draw: sprites sliding to targets,
 // the step (target0 - x0) / (frames - age) from the first, sound 0x2C on age 1
 struct Slide {
     int started = -1;

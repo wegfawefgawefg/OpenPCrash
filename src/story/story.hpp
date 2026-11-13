@@ -120,7 +120,7 @@ void area_pick(Story& story, const StoryTables& tables, int area);
 EntryStatus area_entry_status(const Story& story, const StoryTables& tables, int area);
 // entering: pays the fee and writes the at-entry counts the first-win talks compare with
 void tournament_enter(Story& story, const StoryTables& tables, int area);
-// money_add 0xB1EF1: amount and result held to 0..99,999,999
+// money_add: amount and result held to 0..99,999,999
 void money_add(Story& story, std::int64_t amount);
 // a kill by a human player writes 1 into the victim's ticket byte (actor_settle_damage)
 void opponent_beaten(Story& story, const OpponentTicket& ticket);

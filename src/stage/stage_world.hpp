@@ -47,7 +47,7 @@ enum class PropStep : std::uint8_t {
     TimedParticles, // stage_prop_timed_particles
     TwoStage,       // prop_hit_two_stage
     BurnUpdate,     // prop_burn_update
-    Explode,     // prop_hit_explode_2..4 0x72B5D, prop_hit_explode_3, prop_hit_explode_4 (the same)
+    Explode,     // prop_hit_explode_2, _3 and _4 (the same)
     Vanish,      // prop_hit_vanish
     GateTouch,   // gate_touch
     GateOpening, // gate_opening_update

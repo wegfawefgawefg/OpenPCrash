@@ -287,8 +287,8 @@ void battle_tutorial_step(World& world, Fighter& f) {
             exit_to(world, f, state + 1, state == scene_lesson_weapons_hello);
         }
         break;
-    case scene_lesson_arm_a: // each weapon: 3 drones each, then 10 with all of them (-0x3F81 ..
-                             // -0x3C01)
+    case scene_lesson_arm_a: // each weapon: 3 drones each, then 10 with all of them
+                             // (-0x3F81 .. -0x3C01)
     case scene_lesson_arm_a + 1:
     case scene_lesson_arm_a + 2:
     case scene_lesson_arm_a + 3:

@@ -278,8 +278,7 @@ bool cmd_page_wait(TalkInterp& interp, const TalkPads& pads, std::vector<int>& s
     return false;
 }
 
-// event_cmd_timer_a / _b 0xC6CAE, event_cmd_timer_b: load and count down; they never hold the
-// script
+// event_cmd_timer_a / _b: load and count down; they never hold the script
 bool cmd_countdown(TalkInterp& interp, const TalkCommand& command, int bit) {
     if (interp.pc_high > interp.pc) {
         return true;

@@ -66,9 +66,9 @@ void load_items(Ui& ui, HelpScreen& h) {
     }
 }
 
-// portrait, a wait that never passes, end (the words at
-// pepper_talk_script: type 4, actor 12, expression 2, at 329, 37, order 10, colour -1, flag 1 fade
-// in) decomp: pepper_talk_interp_start 0xCE870
+// Pepper's script: portrait, a wait that never passes, end (the words at pepper_talk_script:
+// type 4, actor 12, expression 2, at 329, 37, order 10, colour -1, flag 1 fade in)
+// decomp: pepper_talk_interp_start 0xCE870
 void pepper_start(FrontEnd& fe, Ui& ui, HelpScreen& h) {
     TalkScript& s = h.script;
     s = TalkScript{};

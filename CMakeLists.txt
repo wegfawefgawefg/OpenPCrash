@@ -19,6 +19,8 @@ include(cmake/platform.cmake)
 include(cmake/deps.cmake)
 # the world's fixed-point maths (src/fx, docs/numbers.md)
 include(cmake/fx.cmake)
+# the deterministic world, the game's and pc_sim's (cmake/world.cmake)
+include(cmake/world.cmake)
 
 # where the original lives (read only) and where its converted copy goes (docs/assets.md); the
 # extractor and the game take --disc, --xbe and --data/--out instead
@@ -38,15 +40,13 @@ add_subdirectory(tools/extract)
 
 # the game
 add_executable(phantomcrash
-    src/main.cpp src/run_log.cpp src/cli.cpp src/viewer_battle.cpp src/viewer_world.cpp src/battle_world.cpp src/battle/battle_spawn.cpp src/battle/battle_ending.cpp
-    src/world/world.cpp src/world/world_hash.cpp src/world/world_hash_save.cpp src/save/vs_saves.cpp src/world/control_route.cpp src/world/world_random.cpp
-    src/story/story_tables.cpp src/story/progress.cpp src/story/days.cpp src/story/triggers.cpp
+    src/main.cpp src/run_log.cpp src/user_folder.cpp src/cli.cpp src/viewer_battle.cpp src/save/vs_saves.cpp
     src/talk/talk_script.cpp src/talk/sprite_registry.cpp src/talk/text_draw.cpp
     src/talk/talk_interp.cpp src/talk/talk_task.cpp src/talk/talk_canvas.cpp src/talk/talk_player.cpp
     src/talk/talk_skip.cpp
-    src/input/pad_read.cpp src/input/menu_input.cpp src/input/bindings.cpp src/input/device_codes.cpp
-    src/input/devices.cpp src/input/dev_route.cpp src/input/script_input.cpp src/input/pad_calibration.cpp
-    src/screens/ui/ui.cpp src/screens/ui/ui_data.cpp src/screens/ui/ui_anchors.cpp
+    src/input/bindings.cpp src/input/device_codes.cpp
+    src/input/devices.cpp src/input/dev_route.cpp src/input/pad_calibration.cpp
+    src/screens/ui/ui.cpp src/screens/ui/ui_data.cpp src/screens/ui/ui_anchors.cpp src/screens/ui/ui_anchor_rules.cpp
     src/screens/ui/ui_anchor_shapes.cpp src/screens/ui/menu_pointer.cpp src/screens/ui/screen_text.cpp
     src/screens/ui/screen_widgets.cpp src/screens/flow/front_end.cpp src/screens/flow/dev_seed.cpp src/screens/flow/talk_skips.cpp
     src/screens/title/boot_screens.cpp
@@ -75,27 +75,13 @@ add_executable(phantomcrash
     src/view/fighter_sounds.cpp
     src/view/footsteps.cpp
     src/render/d3dx_math.cpp
-    src/assets/pack_assets.cpp src/assets/motion_sets.cpp
-    src/stage/stage_scene.cpp src/stage/stage_data.cpp src/stage/stage_world.cpp src/stage/stage_props.cpp
-    src/stage/supply_craft.cpp src/stage/supply_crates.cpp src/stage/stage_animate.cpp
-    src/stage/stage_view.cpp src/stage/sky_craft.cpp
-    src/stage/stage_audio.cpp
+    src/stage/stage_scene.cpp src/stage/stage_animate.cpp src/stage/stage_view.cpp
+    src/stage/sky_craft.cpp src/stage/stage_audio.cpp
     src/mech/mech_pose.cpp src/mech/mech_ik.cpp src/mech/mech_parts.cpp src/mech/mech_load.cpp
-    src/mech/fighter_spawn.cpp src/mech/fighter_motion.cpp src/mech/fighter_root.cpp src/mech/fighter_air.cpp
-    src/mech/fighter_contact.cpp src/mech/fighter_hurt.cpp src/mech/rig_data.cpp
-    src/mech/fighter_camo.cpp src/stage/pickup_apply.cpp
-    src/mech/pose_ik.cpp src/mech/pose_walk.cpp src/mech/pose_weapons.cpp src/mech/pose_compare.cpp
-    src/weapons/combat_tables.cpp src/weapons/combat_spawn.cpp src/weapons/weapon_fire.cpp
-    src/weapons/shot_movers.cpp src/weapons/shot_pass.cpp src/weapons/shot_hits.cpp
-    src/weapons/damage_settle.cpp src/weapons/hud_aim.cpp src/weapons/weapon_clip.cpp
-    src/hud/hud_data.cpp src/hud/hud_core.cpp src/hud/hud_readout.cpp src/hud/hud_gauges.cpp src/hud/hud_meters.cpp
+    src/mech/pose_compare.cpp
+    src/hud/hud_data.cpp src/hud/hud_core.cpp src/hud/hud_sprites.cpp src/hud/hud_readout.cpp src/hud/hud_gauges.cpp src/hud/hud_meters.cpp
     src/hud/hud_reticle.cpp src/hud/hud_radar.cpp src/hud/hud_scenes.cpp src/hud/hud_barks.cpp
-    src/hud/hud_world.cpp
-    src/battle/part_records.cpp src/battle/battle_data.cpp src/battle/stage_collision.cpp
-    src/battle/battle_camera.cpp src/battle/hud_senses.cpp src/battle/fighters_separate.cpp
-    src/battle/camera_views.cpp src/view/cockpit_view.cpp src/input/pad_rumble.cpp
-    src/ai/ai_data.cpp src/ai/ai_links.cpp src/ai/ai_update.cpp src/ai/ai_target.cpp src/ai/ai_aim.cpp
-    src/ai/ai_route.cpp src/ai/ai_weapons.cpp src/ai/ai_states.cpp src/ai/ai_ranker.cpp
+    src/view/cockpit_view.cpp src/input/pad_rumble.cpp
     src/render/scene_draw.cpp src/render/scenery.cpp src/render/mesh_queue.cpp src/render/mesh_draw.cpp
     src/render/mesh_constants.cpp src/render/stage_lighting.cpp src/render/camo_draw.cpp
     src/effects/effect_data.cpp src/effects/particle_pool.cpp src/effects/particle_start.cpp
@@ -107,25 +93,22 @@ add_executable(phantomcrash
     src/effects/cockpit_draw.cpp)
 # local multiplayer: seats and devices, split-screen VS (docs/multiplayer.md)
 target_sources(phantomcrash PRIVATE
-    src/input/seats.cpp src/input/virtual_pads.cpp src/battle/vs_battle.cpp
+    src/input/seats.cpp src/input/virtual_pads.cpp
     src/view/split_views.cpp src/battle_vs.cpp src/battle_replay.cpp src/screens/vs/vs_setup.cpp src/screens/vs/vs_draw.cpp
     src/screens/vs/vs_area.cpp)
-# the campaign: the opponent queues and rosters, the battle's flow and entry, the hub screens
+# the campaign: the hub screens and the battle's run (its flow and rosters are the world's)
 target_sources(phantomcrash PRIVATE
-    src/story/roster_tables.cpp src/story/rumble.cpp src/story/rumble_roster.cpp
-    src/battle/battle_flow.cpp src/battle/battle_dev.cpp src/battle/battle_scenes.cpp src/battle/battle_scene_ends.cpp src/battle/battle_settle.cpp
-    src/battle/battle_tutorial.cpp
     src/screens/ui/hub_widgets.cpp src/screens/campaign/town_screens.cpp
     src/screens/campaign/club_wired.cpp src/screens/campaign/area_select.cpp src/screens/campaign/area_select_draw.cpp src/screens/campaign/area_plate.cpp
     src/screens/campaign/battle_screen.cpp src/screens/campaign/replay_screen.cpp src/screens/campaign/keep_sv.cpp src/screens/campaign/keep_sv_draw.cpp src/screens/campaign/result_screen.cpp src/battle_run.cpp)
-# the battle's scene cameras, the walk out of the gate and the barks
+# the battle's scene cameras (the curves and the barks are the world's) and the trophies
 target_sources(phantomcrash PRIVATE
-    src/battle/scene_curves.cpp src/battle/battle_barks.cpp src/view/scene_camera.cpp
+    src/view/scene_camera.cpp
     src/screens/system/trophy_models.cpp)
 # the stage viewer's loop (main runs it for --viewer); the AppState's own states
 target_sources(phantomcrash PRIVATE src/viewer_run.cpp src/screens/flow/state_dispatch.cpp
     src/screens/garage/garage_stock.cpp src/screens/title/name_entry_draw.cpp src/screens/vs/vs_machines.cpp)
-target_link_libraries(phantomcrash PRIVATE phantomcrash_fx gfxp::gfxp gsexp::gsexp gubsy::engine SDL3::SDL3 SDL3_image::SDL3_image phantomcrash_cgltf)
+target_link_libraries(phantomcrash PRIVATE phantomcrash_world phantomcrash_fx gfxp::gfxp gsexp::gsexp gubsy::engine SDL3::SDL3 SDL3_image::SDL3_image phantomcrash_cgltf)
 if(MSVC)
     target_compile_options(phantomcrash PRIVATE /W3)
 else()

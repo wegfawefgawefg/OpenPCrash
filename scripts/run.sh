@@ -18,7 +18,7 @@
 #   it skips every conversation chained after it too.
 #
 # Each run writes a log (everything said with SDL_Log: the sound device's story, the health line
-# every 10 s) to ~/.local/share/PhantomCrash/PhantomCrash/logs/run-YYYYMMDD-HHMMSS.log, the newest
+# every 10 s) to ~/.local/share/OpenPCrash/OpenPCrash/logs/run-YYYYMMDD-HHMMSS.log, the newest
 # ten kept. Send the latest with a report of sound going away (docs/audio.md "The run log").
 #   PHANTOMCRASH_SOUND_TRACE=1 scripts/run.sh   every sound started, cut, refused or stopped,
 #                                               with its step, into the same log

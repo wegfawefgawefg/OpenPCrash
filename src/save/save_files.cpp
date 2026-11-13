@@ -1,6 +1,7 @@
 // Save slots on disk and the copies between the world and an image (save_write_slot,
 // save_commit_selected_load, the load screen's newest-slot pick in save_load_screen_step2).
 #include "save/save.hpp"
+#include "user_folder.hpp"
 
 #include <SDL3/SDL_filesystem.h>
 #include <algorithm>
@@ -70,7 +71,7 @@ void save_image_put(const SaveImage& image, World& world, MachineOptions& machin
 
 std::string save_dir_default() {
     std::string dir;
-    if (char* prefs = SDL_GetPrefPath("PhantomCrash", "PhantomCrash")) {
+    if (char* prefs = SDL_GetPrefPath(user_folder_org, user_folder_app)) {
         dir = prefs;
         SDL_free(prefs);
     }

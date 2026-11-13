@@ -95,7 +95,7 @@ struct HelpScreen {
     TalkInterp interp;
 };
 
-// the names the dealer and the media player hand to name entry (name_entry_target_set 0x2C4A0):
+// the names the dealer and the media player hand to name entry (name_entry_target_set):
 // kind 2 a bought Scoobee's chip (garage), kind 3 a playlist (playlist); -1 none set
 struct NameEntryTarget {
     int kind = -1;

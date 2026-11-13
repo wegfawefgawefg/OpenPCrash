@@ -6,6 +6,8 @@
 // SDL_GetBasePath gives inside a bundle), and data/ and cooked/, made from the player's own disc
 // on first run (src/setup), live in the per-user folder (SDL_GetPrefPath), as the saves and the
 // run logs do. --data and --cooked override either.
+#include "user_folder.hpp"
+
 #include <string>
 
 #ifdef PHANTOMCRASH_RELEASE
@@ -25,7 +27,7 @@ inline std::string game_path(const char* built) {
 #ifdef PHANTOMCRASH_RELEASE
 // the per-user folder, with its separator on the end
 inline std::string pref_path() {
-    char* prefs = SDL_GetPrefPath("PhantomCrash", "PhantomCrash");
+    char* prefs = SDL_GetPrefPath(user_folder_org, user_folder_app);
     const std::string path = prefs ? prefs : "";
     SDL_free(prefs);
     return path;

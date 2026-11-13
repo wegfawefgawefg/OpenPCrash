@@ -63,9 +63,9 @@ WHERE YOUR FILES ARE
 
 Saves, settings, the game data read from your disc, and a log of each run:
 
-Windows: %APPDATA%\PhantomCrash\PhantomCrash\
-Linux:   ~/.local/share/PhantomCrash/PhantomCrash/
-Mac:     ~/Library/Application Support/PhantomCrash/PhantomCrash/
+Windows: %APPDATA%\OpenPCrash\OpenPCrash\
+Linux:   ~/.local/share/OpenPCrash/OpenPCrash/
+Mac:     ~/Library/Application Support/OpenPCrash/OpenPCrash/
          (in the Finder: Go, Go to Folder, and paste that)
 
 The data/ and cooked/ folders there are made from your disc (about 3.3 GB).

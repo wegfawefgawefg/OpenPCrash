@@ -1,6 +1,6 @@
 // The battle's application state (6): battle_spawn's own task (decomp src/od/u_04a150.c
 // battle_enter .. battle_enter_next3; docs/port/battle.md "The battle's own parent
-// in state 6"), the 2D the fight draws over the 3D (the letterbox battle_letterbox_draw, READY and
+// in state 6"), the 2D the fight draws over the 3D (battle_letterbox_draw's letterbox, READY and
 // GO from the entrance, docs/port/battle.md "The entrance") and the pause (src/od/u_0b10c0.c
 // pause_enter, pause_menu_update, pause_screen_draw; docs/port/screens.md "Pause in battle").
 // Main's battle session (src/battle_run.hpp) loads and steps the fight the state asks for.

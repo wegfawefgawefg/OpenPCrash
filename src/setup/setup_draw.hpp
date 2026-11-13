@@ -3,7 +3,9 @@
 // Jost (assets/fonts, SIL Open Font License), close to the original's menus (blue bands with a
 // white edge, black buttons with white frames and yellow words) without any of its art, which
 // isn't there yet on a first run. Laid out on the original's 640x480 doubled, the 1280x960 the
-// game opens at, letterboxed into any window.
+// game opens at, letterboxed into any window. The shapes scale with the window; the text is
+// rendered at the window's own pixels (its pixel density and the letterbox's scale), so it stays
+// sharp on a Retina or HiDPI display and in a big window.
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <map>
@@ -16,13 +18,20 @@ enum class SetupFont { title, heading, body, button, small, count };
 struct SetupArt {
     SDL_Renderer* renderer = nullptr;
     TTF_Font* fonts[static_cast<int>(SetupFont::count)] = {};
-    // rendered text by font, colour and words, made once
+    // the window's pixels to a layout unit, the size the fonts are set at, and the letterbox's
+    // corner in pixels
+    float scale = 1;
+    SDL_FPoint origin{0, 0};
+    // rendered text by font, colour and words, made once at this scale
     std::map<std::string, SDL_Texture*> texts;
 };
 
 bool setup_art_open(SetupArt& art, SDL_Renderer* renderer, const std::string& font_dir,
                     std::string& error);
 void setup_art_close(SetupArt& art);
+// at the top of each frame: follows the window's pixels per layout unit, the fonts resized and the
+// rendered text dropped when it changes (a resize, a move to another display)
+void setup_art_fit(SetupArt& art);
 
 struct SetupColor {
     Uint8 r, g, b, a;

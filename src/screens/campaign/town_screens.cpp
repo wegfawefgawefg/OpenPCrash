@@ -39,7 +39,7 @@ void popup_offset(Ui& ui, int spot, float& ox, float& oy) {
     ox = static_cast<float>(v[static_cast<std::size_t>(spot * 2)]);
     oy = static_cast<float>(v[static_cast<std::size_t>(spot * 2 + 1)]);
 }
-// town_map_marker_spots (, MapSpot {x, y, flipped} by spot): the ui family doesn't write
+// town_map_marker_spots (MapSpot {x, y, flipped} by spot): the ui family doesn't write
 // this table yet, so its values are the decomp's (src/data/ui_b2.c, docs/port/screens.md "Town
 // map")
 struct MapSpot {

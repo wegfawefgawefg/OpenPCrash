@@ -109,6 +109,8 @@ the port fixes or keeps it, and why. When unsure, keep it and add a line to `doc
 - Be kind to the owner's machine; he uses it while agents run (2026-11-12: load 252 on 32 cores from parallel lavapipe
   captures and a load test). At most one game instance per agent at a time, under `nice -n 19` with
   `LP_NUM_THREADS=2`; builds `nice -n 19 ... -j4`; no busy-loop load tests except briefly under `taskset` on 1-2 cores.
+- Every headless run sets `XDG_DATA_HOME` to a scratch folder. The game moves an old `PhantomCrash/PhantomCrash`
+  user folder to `OpenPCrash/OpenPCrash` on start, and the owner's own folder must only move when he runs the game.
 - In a worktree, read the main checkout's `data/` (`--data`) but cook into your own `cooked/` (`--cooked`): worktrees
   with different pack versions sharing one `cooked/` keep re-cooking each other's packs.
 

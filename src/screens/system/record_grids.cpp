@@ -1,12 +1,37 @@
 // The records' tournament pages (decomp src/o1/u_02edc5.c record_tournament_page,
 // record_tournament_grid_update, record_tournament_grid6_update): the First
 // Ranker's card, the three areas' class grids with their ranker, the other tournaments' two
-// sheets, and the trophies of what was won (drawn through the renderer from `trophies`).
+// sheets, and the trophies of what was won (drawn through the renderer from `trophies`); and the
+// colour lerp and the unrolling panel every records page draws with.
 #include "audio/sound_cues.hpp"
 #include "input/menu_input.hpp"
 #include "screens/flow/front_end.hpp"
 #include "screens/ui/screen_header.hpp"
 #include "world/world.hpp"
+
+// a to b by t per channel, b's alpha
+// decomp: record_color_lerp 0x333B9
+std::uint32_t record_color_lerp(std::uint32_t a, float t, std::uint32_t b) {
+    t = t > 1.0f ? 1.0f : t < 0.0f ? 0.0f : t;
+    const float u = 1.0f - t;
+    auto channel = [&](int shift) {
+        const float ca = static_cast<float>((a >> shift) & 0xff);
+        const float cb = static_cast<float>((b >> shift) & 0xff);
+        return static_cast<std::uint32_t>(static_cast<int>(ca * u + cb * t)) & 0xff;
+    };
+    return (channel(16) << 16) | (channel(8) << 8) | channel(0) | (b & 0xff000000u);
+}
+
+// a panel unrolling downwards over 18 updates (y scale = clock / 18), centred
+void record_unroll_draw(Ui& ui, int id, float x, float y, float fade, int blend) {
+    Sprite s = sprite_of(ui, id);
+    s.pos[0] = static_cast<float>(sprite_width(ui, id)) * 0.5f + x;
+    s.pos[1] = static_cast<float>(sprite_height(ui, id)) * 0.5f + y;
+    s.blend = blend;
+    s.scale[1] = fade;
+    s.flags |= 8;
+    sprite_submit(ui, s);
+}
 
 namespace {
 

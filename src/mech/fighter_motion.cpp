@@ -407,7 +407,7 @@ void fighter_strafe_step(Fighter& f) {
     }
     if (!state_in(f.motion_state,
                   {state_jump, state_fall, state_dodge, state_stagger, state_dead, state_melee})) {
-        // actor_walk_rate 0x763E6: the root-motion walk rate back in units a tick
+        // actor_walk_rate: the root-motion walk rate back in units a tick
         const Fx walk = f.walk_root_motion ? fx_mul_near(f.walk_rate, f.walk_scale) : f.walk_rate;
         f.velocity += turned_by({-fx_mul_near(twist, walk), Fx{}, Fx{}}, f.heading);
     }

@@ -62,7 +62,7 @@ void craft_finish(Effects& fx, int group) {
     }
 }
 
-// the paper storm (supply_craft_paper_storm, effect_paper_storm 0x87A1D): four groups of
+// the paper storm (supply_craft_paper_storm, effect_paper_storm): four groups of
 // craft_effects 6..22, the first at the craft's paper point, the others at the ending's points A,
 // B and C (D_0098CA14 and the two after it, func_0011E500), each where the one before left it
 // when its point is unset
