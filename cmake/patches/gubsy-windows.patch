@@ -1,0 +1,20 @@
+diff --git a/src/realnet/connection_plan.cpp b/src/realnet/connection_plan.cpp
+index d109656..f03e7d0 100644
+--- a/src/realnet/connection_plan.cpp
++++ b/src/realnet/connection_plan.cpp
+@@ -190,11 +190,11 @@ bool local_private_ipv4_reachable(const std::string& host,
+     Ipv4Address host_address;
+     if (!parse_ipv4_address(host, host_address))
+         return false;
+-    for (const LocalInterfaceAddress& interface : local_network.interfaces) {
++    for (const LocalInterfaceAddress& local : local_network.interfaces) {
+         Ipv4Address local_address;
+-        if (interface.family == AddressFamily::Ipv4 &&
+-            parse_ipv4_address(interface.address, local_address) &&
+-            same_ipv4_prefix(host_address, local_address, interface.prefix_length)) {
++        if (local.family == AddressFamily::Ipv4 &&
++            parse_ipv4_address(local.address, local_address) &&
++            same_ipv4_prefix(host_address, local_address, local.prefix_length)) {
+             return true;
+         }
+     }

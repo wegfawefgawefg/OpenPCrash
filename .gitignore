@@ -1,0 +1,7 @@
+build*/
+*.spv
+captures/
+/data/
+/cooked/
+.cache/
+.claude/

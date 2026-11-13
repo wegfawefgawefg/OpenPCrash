@@ -1,0 +1,27 @@
+OpenPCrash is built with these libraries and this font. Each is used under
+its own license; the license texts are in licenses/ beside these notes.
+
+SDL 3, SDL_image, SDL_ttf, SDL_mixer   zlib license        https://libsdl.org
+  SDL_image with stb_image (public domain / MIT); SDL_mixer with its
+  built-in decoders (public domain / MIT); SDL_ttf with FreeType (FreeType
+  License), HarfBuzz (MIT), PlutoSVG and PlutoVG (MIT)
+pl_mpeg (the movie player)             MIT                 https://github.com/phoboslab/pl_mpeg
+cgltf                                  MIT                 https://github.com/jkuhlmann/cgltf
+bc7enc_rdo (rgbcx, bc7enc)             MIT / public domain https://github.com/richgel999/bc7enc_rdo
+Gubsy, GView, GLayout, gfxp, gsexp     see licenses/       https://github.com/wegfawefgawefg
+Jost (the setup screen's font)         SIL Open Font License 1.1
+                                       https://github.com/indestructible-type/Jost
+
+Windows only:
+LLVM libc++ and libunwind              Apache 2.0 with LLVM exception   https://llvm.org
+mingw-w64 runtime                      ZPL / public domain / MIT        https://www.mingw-w64.org
+
+Mac only:
+MoltenVK (libMoltenVK.dylib)           Apache 2.0          https://github.com/KhronosGroup/MoltenVK
+  with SPIRV-Cross and SPIRV-Tools (Apache 2.0) and cereal (BSD 3-clause)
+Vulkan Loader (libvulkan.1.dylib)      Apache 2.0          https://github.com/KhronosGroup/Vulkan-Loader
+
+Linux and Windows use the system's Vulkan loader.
+
+Phantom Crash itself is not part of this download. OpenPCrash reads the
+player's own copy of the game, on the player's own computer.

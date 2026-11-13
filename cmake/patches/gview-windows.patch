@@ -1,0 +1,13 @@
+diff --git a/src/imgui_canvas.cpp b/src/imgui_canvas.cpp
+index 83fe94a..4392d99 100644
+--- a/src/imgui_canvas.cpp
++++ b/src/imgui_canvas.cpp
+@@ -57,7 +57,7 @@ void draw_persistence_controls(AuthoringSession& session, AuthoringUiState& stat
+         glayout::graph_canvas_clear(state.canvas);
+         if (hooks.rebuild) hooks.rebuild();
+     }
+-    ImGui::TextDisabled("%s%s", session.source().empty() ? "C++ source" : session.source().c_str(),
++    ImGui::TextDisabled("%s%s", session.source().empty() ? "C++ source" : session.source().string().c_str(),
+                         session.dirty() ? "  * modified" : "  saved");
+ }
+ 
